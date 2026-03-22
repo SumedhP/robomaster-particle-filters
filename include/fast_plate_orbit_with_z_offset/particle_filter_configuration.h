@@ -45,36 +45,36 @@ struct most_likely_particle_reduction_impl {
     const prediction a_particle = a.most_likely_particle();
     const prediction b_particle = b.most_likely_particle();
 
-    const pf::util::device_array<orientation_and_z_coordinates_and_radii, 5> candidates = {
-        orientation_and_z_coordinates_and_radii{
+    const pf::util::device_array<orientation_and_z_coordinates_and_radius, 5> candidates = {
+      orientation_and_z_coordinates_and_radius{
             .orientation = a_particle.orientation() + 0.0f * half_pi,
             .radius_ = a_particle.radius(),
             .z_coordinate_0 = a_particle.z_coordinate_0(),
             .z_coordinate_1 = a_particle.z_coordinate_1(),
         },
 
-        orientation_and_z_coordinates_and_radii{
+      orientation_and_z_coordinates_and_radius{
             .orientation = a_particle.orientation() + 1.0f * half_pi,
             .radius_ = a_particle.radius(),
             .z_coordinate_0 = a_particle.z_coordinate_1(),
             .z_coordinate_1 = a_particle.z_coordinate_0(),
         },
 
-        orientation_and_z_coordinates_and_radii{
+      orientation_and_z_coordinates_and_radius{
             .orientation = a_particle.orientation() - 1.0f * half_pi,
             .radius_ = a_particle.radius(),
             .z_coordinate_0 = a_particle.z_coordinate_1(),
             .z_coordinate_1 = a_particle.z_coordinate_0(),
         },
 
-        orientation_and_z_coordinates_and_radii{
+      orientation_and_z_coordinates_and_radius{
             .orientation = a_particle.orientation() + 2.0f * half_pi,
             .radius_ = a_particle.radius(),
             .z_coordinate_0 = a_particle.z_coordinate_0(),
             .z_coordinate_1 = a_particle.z_coordinate_1(),
         },
 
-        orientation_and_z_coordinates_and_radii{
+      orientation_and_z_coordinates_and_radius{
             .orientation = a_particle.orientation() - 2.0f * half_pi,
             .radius_ = a_particle.radius(),
             .z_coordinate_0 = a_particle.z_coordinate_0(),
@@ -89,7 +89,7 @@ struct most_likely_particle_reduction_impl {
     const float alpha = static_cast<float>(b.count()) / static_cast<float>(a.count() + b.count());
     const float c_alpha = 1.0f - alpha;
 
-    const float radius = c_alpha * a_radius + alpha * b_particle.radius_0();
+    const float radius = c_alpha * a_radius + alpha * b_particle.radius();
 
     const float z_coordinate_0 = c_alpha * a_z_coordinate_0 + alpha * b_particle.z_coordinate_0();
     const float z_coordinate_1 = c_alpha * a_z_coordinate_1 + alpha * b_particle.z_coordinate_1();
@@ -199,7 +199,7 @@ class particle_filter_configuration {
 
     state.update_state(
         time_offset_seconds,
-        radius_noise
+        radius_noise,
         z_coordinate_noise_common,
         z_coordinate_noise_0,
         z_coordinate_noise_1,
