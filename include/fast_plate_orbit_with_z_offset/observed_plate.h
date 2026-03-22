@@ -24,4 +24,4 @@ class observed_plate {
       : position_{position}, position_diagonal_covariance_{position_diagonal_covariance} {}
 };
 
-}  // namespace fast_plate_orbit
+}  // namespace fast_plate_orbit_with_z_offset

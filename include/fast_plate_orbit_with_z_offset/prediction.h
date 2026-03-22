@@ -210,4 +210,4 @@ class prediction {
         center_velocity_{center_velocity} {}
 };
 
-}  // namespace plate_orbit_v2
+}  // namespace fast_plate_orbit_with_z_offset

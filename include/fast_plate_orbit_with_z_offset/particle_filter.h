@@ -1,0 +1,32 @@
+#pragma once
+#include <fast_plate_orbit_with_z_offset/observation.h>
+#include <fast_plate_orbit_with_z_offset/particle_filter_configuration_parameters.h>
+#include <fast_plate_orbit_with_z_offset/prediction.h>
+
+#include <memory>
+
+namespace fast_plate_orbit_with_z_offset {
+
+class particle_filter {
+ private:
+  struct impl;
+
+  struct impl_deleter {
+    void operator()(impl* p_impl);
+  };
+
+  std::unique_ptr<impl, impl_deleter> p_impl_;
+
+ public:
+  [[nodiscard]] prediction extrapolate_state(const float& time_offset_seconds) const noexcept;
+
+  void update_state_sans_observation(const float& time_offset_seconds) noexcept;
+  void update_state_with_observation(const float& time_offset_seconds, const observation& observation_state) noexcept;
+
+  particle_filter(
+      const std::size_t& number_of_particles,
+      const observation& initial_observation,
+      const particle_filter_configuration_parameters& params) noexcept;
+};
+
+}  // namespace fast_plate_orbit_with_z_offset

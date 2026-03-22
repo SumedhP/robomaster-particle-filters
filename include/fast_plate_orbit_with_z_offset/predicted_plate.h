@@ -21,4 +21,4 @@ class predicted_plate {
       : position_{position}, velocity_{velocity} {}
 };
 
-}  // namespace fast_plate_orbit
+}  // namespace fast_plate_orbit_with_z_offset
