@@ -3,6 +3,7 @@
 #include <plate_orbit_v2/observed_plate.h>
 #include <plate_orbit_v2/observed_plate_orbit.h>
 #include <thrust/execution_policy.h>
+#include <thrust/extrema.h>
 
 #include <Eigen/Dense>
 

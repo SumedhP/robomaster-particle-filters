@@ -6,6 +6,7 @@
 
 #include <Eigen/Dense>
 #include <array>
+#include <thrust/extrema.h>
 
 namespace plate_orbit {
 

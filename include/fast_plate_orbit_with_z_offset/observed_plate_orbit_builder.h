@@ -3,6 +3,7 @@
 #include <fast_plate_orbit_with_z_offset/observed_plate.h>
 #include <fast_plate_orbit_with_z_offset/observed_plate_orbit.h>
 #include <thrust/execution_policy.h>
+#include <thrust/extrema.h>
 
 #include <Eigen/Dense>
 
