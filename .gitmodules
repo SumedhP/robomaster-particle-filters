@@ -4,6 +4,6 @@
 [submodule "deps/eigen"]
 	path = deps/eigen
 	url = https://gitlab.com/libeigen/eigen.git
-[submodule "particle-filter"]
-	path = particle-filter
+[submodule "deps/particle-filter"]
+	path = deps/particle-filter
 	url = https://github.com/SumedhP/particle-filter
