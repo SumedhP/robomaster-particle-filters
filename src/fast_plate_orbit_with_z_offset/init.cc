@@ -46,7 +46,53 @@ void init(py::module_& m) noexcept {
   py::class_<particle_filter_configuration_parameters>(
       fast_plate_orbit_with_z_offset,
       "ParticleFilterConfigurationParameters")
-      .def(py::init<float, float, float, float, float, float, float, float, float, Eigen::Vector2f, Eigen::Vector2f>());
+      .def(
+          py::init([](
+                       const float radius_prior,
+                       const float visibility_logit_coefficient,
+                       const float radius_prior_variance_one_plate,
+                       const float radius_prior_variance_two_plates,
+                       const float radius_process_variance,
+                       const float z_coordinate_common_process_variance,
+                       const float z_coordinate_offset_process_variance,
+                       const float orientation_velocity_prior_variance,
+                       const float orientation_velocity_process_variance,
+                       const Eigen::Vector2f& center_velocity_prior_diagonal_covariance,
+                       const Eigen::Vector2f& center_velocity_process_diagonal_covariance,
+                       const float likelihood_refinement_window,
+                       const std::uint32_t observation_resample_period,
+                       const std::uint32_t observation_update_subsample_stride) {
+            return particle_filter_configuration_parameters{
+                .radius_prior = radius_prior,
+                .visibility_logit_coefficient = visibility_logit_coefficient,
+                .radius_prior_variance_one_plate = radius_prior_variance_one_plate,
+                .radius_prior_variance_two_plates = radius_prior_variance_two_plates,
+                .radius_process_variance = radius_process_variance,
+                .z_coordinate_common_process_variance = z_coordinate_common_process_variance,
+                .z_coordinate_offset_process_variance = z_coordinate_offset_process_variance,
+                .orientation_velocity_prior_variance = orientation_velocity_prior_variance,
+                .orientation_velocity_process_variance = orientation_velocity_process_variance,
+                .center_velocity_prior_diagonal_covariance = center_velocity_prior_diagonal_covariance,
+                .center_velocity_process_diagonal_covariance = center_velocity_process_diagonal_covariance,
+                .likelihood_refinement_window = likelihood_refinement_window,
+                .observation_resample_period = observation_resample_period,
+                                .observation_update_subsample_stride = observation_update_subsample_stride,
+            };
+          }),
+          py::arg("radius_prior"),
+          py::arg("visibility_logit_coefficient"),
+          py::arg("radius_prior_variance_one_plate"),
+          py::arg("radius_prior_variance_two_plates"),
+          py::arg("radius_process_variance"),
+          py::arg("z_coordinate_common_process_variance"),
+          py::arg("z_coordinate_offset_process_variance"),
+          py::arg("orientation_velocity_prior_variance"),
+          py::arg("orientation_velocity_process_variance"),
+          py::arg("center_velocity_prior_diagonal_covariance"),
+          py::arg("center_velocity_process_diagonal_covariance"),
+          py::arg("likelihood_refinement_window") = -1.0f,
+          py::arg("observation_resample_period") = 32U,
+          py::arg("observation_update_subsample_stride") = 16U);
 
   py::class_<particle_filter>(fast_plate_orbit_with_z_offset, "ParticleFilter")
       .def(py::init<size_t, observation, particle_filter_configuration_parameters>())

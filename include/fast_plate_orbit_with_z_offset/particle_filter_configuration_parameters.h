@@ -2,6 +2,8 @@
 
 #include <Eigen/Dense>
 
+#include <cstdint>
+
 namespace fast_plate_orbit_with_z_offset {
 
 struct particle_filter_configuration_parameters {
@@ -20,6 +22,10 @@ struct particle_filter_configuration_parameters {
 
   Eigen::Vector2f center_velocity_prior_diagonal_covariance;
   Eigen::Vector2f center_velocity_process_diagonal_covariance;
+
+  float likelihood_refinement_window{-1.0f};
+  std::uint32_t observation_resample_period{32U};
+  std::uint32_t observation_update_subsample_stride{16U};
 };
 
 }  // namespace fast_plate_orbit_with_z_offset

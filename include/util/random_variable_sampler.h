@@ -33,8 +33,12 @@ class random_variable_sampler {
   template <int N>
   PF_TARGET_ATTRS [[nodiscard]] Eigen::Matrix<T, N, 1> normal_sample(
       const Eigen::Matrix<T, N, 1>& diagonal_covariance) noexcept {
-    return diagonal_covariance.cwiseSqrt().cwiseProduct(
-        Eigen::Matrix<T, N, 1>{}.unaryExpr([this](auto) { return standard_normal_(random_number_generator_); }));
+    Eigen::Matrix<T, N, 1> result{};
+    for (int i = 0; i < N; ++i) {
+      result[i] = sqrt(diagonal_covariance[i]) * standard_normal_(random_number_generator_);
+    }
+
+    return result;
   }
 
   PF_TARGET_ATTRS [[nodiscard]] T unnormalized_normal_log_density(const T& variance, const T& x) const noexcept {
@@ -45,7 +49,15 @@ class random_variable_sampler {
   PF_TARGET_ATTRS [[nodiscard]] T unnormalized_normal_log_density(
       const Eigen::Matrix<T, N, 1>& diagonal_covariance,
       const Eigen::Matrix<T, N, 1>& x) const noexcept {
-    return -static_cast<T>(0.5) * x.cwiseProduct(diagonal_covariance.cwiseInverse()).dot(x);
+    const Eigen::Matrix<T, N, 1> inverse_diagonal_covariance = diagonal_covariance.cwiseInverse();
+    return unnormalized_normal_log_density_from_inverse_covariance(inverse_diagonal_covariance, x);
+  }
+
+  template <int N>
+  PF_TARGET_ATTRS [[nodiscard]] T unnormalized_normal_log_density_from_inverse_covariance(
+      const Eigen::Matrix<T, N, 1>& inverse_diagonal_covariance,
+      const Eigen::Matrix<T, N, 1>& x) const noexcept {
+    return -static_cast<T>(0.5) * x.cwiseProduct(inverse_diagonal_covariance).dot(x);
   }
 };
 
