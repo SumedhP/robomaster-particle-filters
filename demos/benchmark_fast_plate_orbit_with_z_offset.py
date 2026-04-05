@@ -106,6 +106,10 @@ def run_benchmarks_for_particle_count(
     def update_with_observation() -> None:
         particle_filter.update_state_with_observation(dt_seconds, observation)
 
+    def update_with_observation_and_extract_state() -> None:
+        particle_filter.update_state_with_observation(dt_seconds, observation)
+        _ = particle_filter.extrapolate_state(dt_seconds)
+
     def update_sans_observation() -> None:
         particle_filter.update_state_sans_observation(dt_seconds)
 
@@ -124,6 +128,7 @@ def run_benchmarks_for_particle_count(
     methods: Sequence[tuple[str, Callable[[], None]]] = (
         ("construct_filter", construct_filter),
         ("update_state_with_observation", update_with_observation),
+        ("update_state_with_observation_and_extract_state", update_with_observation_and_extract_state),
         ("update_state_sans_observation", update_sans_observation),
         ("extrapolate_state", extrapolate_state),
         ("tracking_iteration", tracking_iteration),

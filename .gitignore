@@ -8,3 +8,5 @@ robomaster_particle_filters.egg-info
 src/robomaster_particle_filters.egg-info
 
 .venv/
+*.log
+*.png

@@ -1,0 +1,107 @@
+timestamp	run_id	phase	mean_us	std_us	tracking_mean_us	status	description
+2026-04-04T23:43:33-07:00	run-apr4-a-baseline-000	baseline	9024.601	15.981	13188.246	keep	baseline zero-change run at 1M particles (runs=40 warmup=10)
+2026-04-04T23:54:47-07:00	run-apr4-a-large-001	large	9018.958	13.014	13009.189	keep	likelihood hot-path caching plus powf-to-mul in z-offset prediction
+2026-04-05T00:00:25-07:00	run-apr4-a-large-002	large	9017.437	41.027	13034.218	discard	trig-reduced predicted_plates initial run had unacceptable std regression
+2026-04-05T00:00:25-07:00	run-apr4-a-large-002-rerun	large	9003.638	8.513	13011.245	keep	trig-reduced predicted_plates rerun validated improvement and stability
+2026-04-05T00:04:43-07:00	run-apr4-a-large-003	large	9004.182	19.302	13013.579	discard	manual reduction candidate selection regressed mean and std vs best kept state
+2026-04-05T00:08:16-07:00	run-apr4-a-large-002-confirm	large	9004.233	9.587	13040.349	keep	post-revert confirmation of kept large-001 plus large-002 state
+2026-04-05T08:29:09-07:00	run-apr5-a-large-004	large	7961.264	15.950	11915.307	keep	position-only predicted plate path in likelihood; skip unused velocity math
+2026-04-05T08:29:09-07:00	run-apr5-a-large-004-rerun	large	7979.017	18.909	11932.073	keep	stability rerun for position-only predicted plate path
+2026-04-05T08:34:17-07:00	run-apr5-a-large-005	large	7960.478	10.795	12070.884	keep	precomputed sigma values and sigma-based sampling to avoid repeated sqrt in process/sample paths
+2026-04-05T08:34:17-07:00	run-apr5-a-large-005-rerun	large	7948.616	19.532	11922.715	keep	stability rerun for sigma-precompute sampling change
+2026-04-05T08:39:42-07:00	run-apr5-a-large-006	large	7945.282	13.732	11910.530	keep	use precomputed diagonal precision in likelihood density evaluation
+2026-04-05T08:39:42-07:00	run-apr5-a-large-006-rerun	large	7914.040	10.746	11883.999	keep	stability rerun for precomputed precision likelihood optimization
+2026-04-05T08:49:43-07:00	run-apr5-a-large-007	large	8193.576	9.697	12160.057	discard	cached observed-plate precision plus radius-based visibility denominator regressed update mean substantially
+2026-04-05T08:49:43-07:00	run-apr5-a-large-007-revert-confirm	large	7930.893	18.352	11890.238	keep	post-discard rollback confirmation near best kept large-006 state
+2026-04-05T08:57:28-07:00	run-apr5-a-large-008	large	7744.470	10.112	14406.974	discard	deferred resample gather via index-carry improved update-only benchmark but caused major tracking-iteration regression
+2026-04-05T09:01:45-07:00	run-apr5-a-large-008-revert-confirm	large	7935.735	9.205	11891.010	keep	post-discard rollback confirmation restored balanced update and tracking metrics
+2026-04-05T09:06:10-07:00	run-apr5-a-large-009	large	7917.926	14.004	11862.867	discard	reduced configuration capture footprint was close but did not improve update mean versus best kept state
+2026-04-05T09:06:10-07:00	run-apr5-a-large-009-rerun	large	7922.998	20.552	11872.892	discard	stability rerun confirmed no primary-metric win over best kept configuration
+2026-04-05T09:08:54-07:00	run-apr5-a-large-009-revert-confirm	large	7918.187	8.597	11860.723	keep	post-discard rollback confirmation remained near best update mean with strong stability
+2026-04-05T09:12:49-07:00	run-apr5-a-large-010	large	7902.611	14.521	11843.571	discard	scalarized orientation-candidate reduction looked promising initially but did not hold across reruns
+2026-04-05T09:12:49-07:00	run-apr5-a-large-010-rerun	large	7940.276	83.700	11873.196	discard	first stability rerun showed large variance and mean regression
+2026-04-05T09:12:49-07:00	run-apr5-a-large-010-rerun2	large	7913.665	30.540	11847.382	discard	second rerun returned near-best mean but still elevated variance
+2026-04-05T09:12:49-07:00	run-apr5-a-large-010-rerun3	large	7920.029	23.129	11883.920	discard	fourth sample did not confirm consistent primary-metric gain
+2026-04-05T09:15:42-07:00	run-apr5-a-large-010-revert-confirm	large	7915.645	8.086	11860.152	keep	post-discard rollback confirmation returned to stable near-best performance
+2026-04-05T09:19:06-07:00	run-apr5-a-large-011	large	7939.820	11.529	11860.199	discard	fast intrinsic exp/log substitutions regressed update mean without tracking gains
+2026-04-05T09:22:05-07:00	run-apr5-a-large-011-revert-confirm	large	7927.302	17.538	11867.655	keep	post-discard rollback confirmation restored prior behavior envelope
+2026-04-05T09:25:26-07:00	run-apr5-a-large-012	large	7920.587	12.685	11853.235	discard	scalarized prediction center math improved tracking but regressed primary update mean
+2026-04-05T09:25:26-07:00	run-apr5-a-large-012-rerun	large	7920.060	19.214	11843.383	discard	rerun confirmed persistent primary-metric regression despite secondary improvement
+2026-04-05T09:28:21-07:00	run-apr5-a-large-012-revert-confirm	large	7936.869	30.235	11861.385	keep	post-discard rollback confirmation re-established prior implementation state
+2026-04-05T09:32:15-07:00	run-apr5-a-large-013	large	7915.076	9.589	11852.706	discard	2D sampler overloads showed mixed results and no stable primary improvement
+2026-04-05T09:32:15-07:00	run-apr5-a-large-013-rerun	large	7939.811	10.958	11894.723	discard	first rerun regressed both primary and secondary metrics
+2026-04-05T09:32:15-07:00	run-apr5-a-large-013-rerun2	large	7909.380	7.758	11848.029	discard	second rerun was strong but contradicted prior sample; stability unresolved
+2026-04-05T09:32:15-07:00	run-apr5-a-large-013-rerun3	large	7915.301	18.595	11889.972	discard	fourth sample failed to establish consistent gain trend
+2026-04-05T09:35:25-07:00	run-apr5-a-large-013-revert-confirm	large	7982.756	41.034	11973.389	keep	initial rollback confirmation produced transient high-variance outlier
+2026-04-05T09:35:25-07:00	run-apr5-a-large-013-revert-confirm-rerun	large	7917.055	10.793	11887.755	keep	follow-up rollback confirmation returned to expected near-best range
+2026-04-05T09:38:52-07:00	run-apr5-a-large-014	large	9381.641	13.107	15134.637	discard	switching default sampler RNG engine to taus88 caused major regressions in update and tracking paths
+2026-04-05T09:41:45-07:00	run-apr5-a-large-014-revert-confirm	large	7920.722	9.873	11861.507	keep	rollback to default RNG restored expected performance envelope
+2026-04-05T09:53:57-07:00	run-apr5-a-large-015	large	7920.874	15.130	11872.503	discard	precompute initial orbit for sample_from via config precompute path regressed update mean
+2026-04-05T09:57:04-07:00	run-apr5-a-large-015-revert-confirm	large	7915.191	14.040	11882.862	keep	rollback confirmation after discarded precomputed-initial-orbit change returned near best state
+2026-04-05T10:00:06-07:00	run-apr5-a-large-016	large	21074.779	73.901	25234.146	discard	metropolis-style resampler replacement massively regressed update and tracking metrics
+2026-04-05T10:03:12-07:00	run-apr5-a-large-016-revert-confirm	large	8184.371	350.099	12162.989	keep	initial rollback confirmation after discarded metropolis resampler showed transient high-variance outlier
+2026-04-05T10:03:12-07:00	run-apr5-a-large-016-revert-confirm-rerun	large	7917.954	9.072	11872.802	keep	follow-up rollback confirmation restored expected performance envelope after reverting metropolis resampler
+2026-04-05T10:06:26-07:00	run-apr5-a-large-017	large	7957.376	28.855	11885.471	discard	per-seed initializer seeding (no discard sequence walk) regressed update mean and variance
+2026-04-05T10:09:19-07:00	run-apr5-a-large-017-revert-confirm	large	8124.399	91.005	12045.017	keep	initial rollback confirmation after discarded per-seed initializer produced transient high-variance outlier
+2026-04-05T10:09:19-07:00	run-apr5-a-large-017-revert-confirm-rerun	large	7918.515	11.766	11869.010	keep	follow-up rollback confirmation restored expected near-best behavior after reverting seeding change
+2026-04-05T10:13:35-07:00	run-apr5-a-large-018	large	14457.872	598.505	25600.623	discard	philox-backed sampler engine with thrust normal distribution caused severe update and tracking regressions
+2026-04-05T10:16:21-07:00	run-apr5-a-large-018-revert-confirm	large	7926.409	9.782	11885.570	keep	rollback confirmation after discarded philox sampler experiment restored expected performance envelope
+2026-04-05T10:23:05-07:00	run-apr5-a-large-019	large	0.000	0.000	0.000	crash	constant-memory params experiment compiled but crashed during particle filter construction
+2026-04-05T10:25:56-07:00	run-apr5-a-large-019-revert-confirm	large	7939.844	16.242	11864.987	keep	rollback confirmation after crashing constant-memory params experiment restored stable execution
+2026-04-05T10:31:12-07:00	run-apr5-a-large-020	large	7917.406	6.984	11861.983	discard	cub DeviceReduce with preallocated temp storage improved variance but did not beat best update mean
+2026-04-05T10:31:12-07:00	run-apr5-a-large-020-rerun	large	7931.157	26.068	11874.324	discard	rerun confirmed no stable primary-metric improvement for cub-based most-likely reduction
+2026-04-05T10:34:31-07:00	run-apr5-a-large-020-revert-confirm	large	7926.489	19.589	11902.792	keep	rollback confirmation after discarded cub reduction experiment restored expected range
+2026-04-05T10:38:26-07:00	run-apr5-a-large-021	large	7730.745	8.660	11715.057	keep	fused log-sum-exp normalization removed intermediate particle_weights pass and reduced resampler passes
+2026-04-05T10:38:40-07:00	run-apr5-a-large-021-rerun	large	7770.221	118.155	11716.554	keep	first stability rerun retained major mean gain but showed elevated variance
+2026-04-05T10:38:53-07:00	run-apr5-a-large-021-rerun2	large	7735.991	19.153	11693.775	keep	second stability rerun confirmed strong low-variance gain for fused normalization
+2026-04-05T10:43:21-07:00	run-apr5-a-large-022	large	7734.991	24.834	11687.221	discard	fused init seed+sample pass improved tracking but did not beat best update mean
+2026-04-05T10:43:21-07:00	run-apr5-a-large-022-rerun	large	7732.466	19.638	11685.378	discard	first rerun remained close but still above best update mean
+2026-04-05T10:43:21-07:00	run-apr5-a-large-022-rerun2	large	7740.213	18.160	11690.043	discard	second rerun confirmed no primary-metric gain from fused init pass
+2026-04-05T10:46:15-07:00	run-apr5-a-large-022-revert-confirm	large	7724.082	10.030	11687.135	keep	rollback confirmation after discarding fused init yielded new best on fused-normalization baseline
+2026-04-05T10:49:24-07:00	run-apr5-a-large-023	fine	7741.491	12.478	11700.629	discard	fast exp intrinsic in fused normalization regressed update mean versus current best
+2026-04-05T10:52:08-07:00	run-apr5-a-large-023-revert-confirm	fine	7726.738	10.398	11697.555	keep	rollback confirmation after discarded fast-exp tweak preserved near-best fused-normalization performance
+2026-04-05T10:55:20-07:00	run-apr5-a-large-024	fine	7732.225	11.312	11702.862	discard	gather-based resample materialization was close but slower than best for update mean
+2026-04-05T10:58:20-07:00	run-apr5-a-large-024-revert-confirm	fine	7739.978	10.641	11719.825	keep	initial rollback confirmation after run024 discard landed above best with elevated tracking variance
+2026-04-05T10:58:20-07:00	run-apr5-a-large-024-revert-confirm-rerun	fine	7734.315	22.104	11684.371	keep	follow-up rollback confirmation returned to expected near-best fused-normalization range
+2026-04-05T11:09:11-07:00	run-apr5-a-large-025	large	0.000	0.000	0.000	crash	direct curand Philox normal4 sampler crashed under full benchmark harness at 1M particles
+2026-04-05T11:09:11-07:00	run-apr5-a-large-025-focus	large	14060.610	744.169	24889.641	discard	focused update-tracking measurement for direct Philox showed severe regression even without constructor-loop pressure
+2026-04-05T11:12:44-07:00	run-apr5-a-large-025-revert-confirm	large	7753.095	22.772	11715.318	keep	initial rollback confirmation after direct Philox failure was above best envelope
+2026-04-05T11:12:44-07:00	run-apr5-a-large-025-revert-confirm-rerun	large	7729.575	9.231	11698.472	keep	follow-up rollback confirmation restored expected fused-normalization baseline after Philox revert
+2026-04-05T11:18:50-07:00	run-apr5-a-large-026	large	7997.192	21.351	11932.378	discard	adaptive ESS-gated resampling with weight carry-over added overhead and regressed both update and tracking
+2026-04-05T11:18:50-07:00	run-apr5-a-large-026-rerun	large	7969.808	14.780	11920.144	discard	rerun confirmed ESS-gated path did not provide win on this workload
+2026-04-05T11:22:22-07:00	run-apr5-a-large-026-revert-confirm	large	7726.937	9.499	11683.803	keep	rollback confirmation after ESS-gated discard restored near-best fused-normalization behavior
+2026-04-05T11:26:35-07:00	run-apr5-a-large-027	fine	7792.865	13.988	11789.194	discard	reciprocal-sqrt visibility logit math regressed update and tracking means
+2026-04-05T11:29:37-07:00	run-apr5-a-large-027-revert-confirm	fine	7738.968	19.019	11712.308	keep	initial rollback confirmation after run027 discard remained above best baseline range
+2026-04-05T11:29:37-07:00	run-apr5-a-large-027-revert-confirm-rerun	fine	7750.145	37.037	11703.281	keep	follow-up rollback confirmation stayed elevated likely due transient thermal/load conditions
+2026-04-05T11:42:31-07:00	run-apr5-a-large-028	large	5719.159	7.740	8476.656	keep	SoA particle-state storage for fast z-offset filter with index-based resample gather (major update and tracking reduction)
+2026-04-05T11:42:31-07:00	run-apr5-a-large-028-rerun	large	5719.964	6.929	8468.259	keep	stability rerun confirmed SoA particle-state storage gain at 1M particles
+2026-04-05T12:01:53-07:00	run-apr5-a-large-029	large	11762.609	746.170	21770.413	discard	retry direct curand Philox sampler on SoA baseline regressed update and tracking severely
+2026-04-05T12:04:50-07:00	run-apr5-a-large-029-revert-confirm	large	5739.935	24.932	8500.477	keep	rollback confirmation after Philox discard restored SoA performance envelope
+2026-04-05T12:17:16-07:00	run-apr5-a-large-030	large	5753.555	45.387	8462.724	discard	field-level process+likelihood path initial sample regressed update with elevated variance
+2026-04-05T12:17:16-07:00	run-apr5-a-large-030-rerun	large	5672.139	32.479	8397.489	keep	stability rerun for field-level process+likelihood path showed clear update and tracking gains
+2026-04-05T12:17:16-07:00	run-apr5-a-large-030-rerun2	large	5653.460	17.560	8398.432	keep	second rerun confirmed improved update mean for field-level process+likelihood path
+2026-04-05T12:17:16-07:00	run-apr5-a-large-031	large	4903.257	8.527	6898.009	keep	scalar SoA most-likely reduction replaced prediction-object reduction in hot path
+2026-04-05T12:17:16-07:00	run-apr5-a-large-031-rerun	large	4896.349	8.807	6866.890	keep	stability rerun confirmed major gain from scalar SoA reduction
+2026-04-05T12:17:16-07:00	run-apr5-a-large-031-rerun2	large	4903.591	7.260	6875.655	keep	second rerun validated low-variance performance envelope for scalar SoA reduction
+2026-04-05T12:22:48-07:00	run-apr5-a-large-032	large	3617.100	6.880	5565.081	keep	scalar fixed-size sort and scalar precision likelihood path replaced generic position sorting in hotspot
+2026-04-05T12:22:48-07:00	run-apr5-a-large-032-rerun	large	3597.708	7.060	5529.237	keep	stability rerun confirmed major update and tracking gains for scalar likelihood path
+2026-04-05T12:22:48-07:00	run-apr5-a-large-032-rerun2	large	3608.877	11.173	5538.674	keep	second rerun validated low-variance envelope for scalar likelihood optimization
+2026-04-05T13:00:51-07:00	run-apr5-a-large-033	large	3525.863	9.801	5461.190	keep	index-only resampling path removed identity-index materialization; mean_us reflects update+extract workload
+2026-04-05T13:00:51-07:00	run-apr5-a-large-033-rerun	large	3535.592	29.559	5461.136	keep	stability rerun for index-only resampling path on update+extract workload
+2026-04-05T13:00:51-07:00	run-apr5-a-large-033-rerun2	large	3531.364	8.165	5499.659	keep	second rerun confirmed consistent frame-time reduction from index-only resampling
+2026-04-05T13:00:51-07:00	run-apr5-a-large-034	large	3506.002	10.404	5471.282	keep	precomputed process-noise scales moved dt-dependent math out of per-particle process kernel
+2026-04-05T13:00:51-07:00	run-apr5-a-large-034-rerun	large	3535.498	7.733	5481.527	keep	stability rerun for process-noise-scale hoisting path
+2026-04-05T13:00:51-07:00	run-apr5-a-large-034-rerun2	large	3504.664	14.296	5436.863	keep	second rerun confirmed retained gain from process-noise-scale hoisting
+2026-04-05T13:00:51-07:00	run-apr5-a-large-035	large	3503.752	9.517	5443.424	discard	analytic quarter-turn reducer was not stable across reruns and provided no consistent gain
+2026-04-05T13:00:51-07:00	run-apr5-a-large-035-rerun	large	3535.363	7.415	5474.278	discard	first rerun regressed frame time versus kept run-034 envelope
+2026-04-05T13:00:51-07:00	run-apr5-a-large-035-rerun2	large	3539.026	20.263	5467.259	discard	second rerun confirmed no stable win for analytic quarter-turn reducer
+2026-04-05T13:00:51-07:00	run-apr5-a-large-035-revert-confirm	large	3509.919	8.365	5447.881	keep	revert confirmation after discarding analytic quarter-turn reducer
+2026-04-05T13:00:51-07:00	run-apr5-a-large-036	large	3385.340	11.622	5324.785	keep	zero-copy index handoff in resampler via vector swap removed per-frame index copy overhead
+2026-04-05T13:00:51-07:00	run-apr5-a-large-036-rerun	large	3399.534	45.024	5320.471	keep	stability rerun for zero-copy resampler index handoff
+2026-04-05T13:00:51-07:00	run-apr5-a-large-036-rerun2	large	3385.205	21.712	5339.445	keep	second rerun confirmed sustained gain from zero-copy resampler index handoff
+2026-04-05T13:00:51-07:00	run-apr5-a-large-037	large	3377.283	5.510	5333.590	keep	scalar center-velocity noise draws replaced Eigen vector noise sampling in process path
+2026-04-05T13:00:51-07:00	run-apr5-a-large-037-rerun	large	3382.793	8.333	5324.249	keep	stability rerun for scalar center-velocity noise sampling
+2026-04-05T13:00:51-07:00	run-apr5-a-large-037-rerun2	large	3386.236	8.910	5339.116	keep	second rerun validated scalar center-velocity noise sampling performance envelope
+2026-04-05T13:28:41-07:00	run-apr5-a-large-038	large	2934.654	67.899	4506.232	keep	half-precision SoA state storage (all state fields except float log weights) with float compute in kernels
+2026-04-05T13:28:41-07:00	run-apr5-a-large-038-rerun	large	2898.696	5.329	4502.549	keep	stability rerun for half-precision state storage path
+2026-04-05T13:28:41-07:00	run-apr5-a-large-038-rerun2	large	2907.441	23.515	4497.022	keep	second rerun confirmed substantial frame-time and tracking gains for half-state storage

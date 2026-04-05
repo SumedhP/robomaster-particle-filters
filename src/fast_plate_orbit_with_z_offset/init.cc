@@ -53,6 +53,13 @@ void init(py::module_& m) noexcept {
       .def("extrapolate_state", &particle_filter::extrapolate_state, py::call_guard<py::gil_scoped_release>())
 
       .def(
+          "reinitialize",
+          &particle_filter::reinitialize,
+          py::arg("initial_observation"),
+          py::arg("refresh_most_likely_particle_state") = false,
+          py::call_guard<py::gil_scoped_release>())
+
+      .def(
           "update_state_sans_observation",
           &particle_filter::update_state_sans_observation,
           py::call_guard<py::gil_scoped_release>())

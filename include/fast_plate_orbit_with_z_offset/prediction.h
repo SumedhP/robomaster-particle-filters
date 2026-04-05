@@ -65,54 +65,51 @@ class prediction {
   Eigen::Vector2f center_;
   Eigen::Vector2f center_velocity_;
 
-  struct angle_offset_and_z_coordinate_and_radius {
-    float angle_offset;
-    float z_coordinate;
-    float radius;
-  };
-
  public:
   [[nodiscard]] std::array<predicted_plate, number_of_plates> predicted_plates_for_host() const noexcept {
     return predicted_plates().to_host_array();
   }
 
-  PF_TARGET_ATTRS [[nodiscard]] pf::util::device_array<predicted_plate, number_of_plates> predicted_plates() const noexcept {
-    const pf::util::device_array<angle_offset_and_z_coordinate_and_radius, number_of_plates> angle_offsets_and_radii = {
-        angle_offset_and_z_coordinate_and_radius{
-            .angle_offset = 0.0f,
-            .z_coordinate = z_coordinate_0_,
-            .radius = radius_,
-        },
+  PF_TARGET_ATTRS [[nodiscard]] pf::util::device_array<Eigen::Vector3f, number_of_plates> predicted_plate_positions() const noexcept {
+  #ifdef __CUDA_ARCH__
+    float sin_orientation;
+    float cos_orientation;
+    __sincosf(orientation_, &sin_orientation, &cos_orientation);
+  #else
+    const float sin_orientation = sinf(orientation_);
+    const float cos_orientation = cosf(orientation_);
+  #endif
 
-        angle_offset_and_z_coordinate_and_radius{
-            .angle_offset = M_PI_2,
-            .z_coordinate = z_coordinate_1_,
-            .radius = radius_,
-        },
+    const float radius_cos_0 = radius_ * cos_orientation;
+    const float radius_sin_0 = radius_ * sin_orientation;
 
-        angle_offset_and_z_coordinate_and_radius{
-            .angle_offset = M_PI,
-            .z_coordinate = z_coordinate_0_,
-            .radius = radius_,
-        },
+    const float radius_cos_1 = -radius_sin_0;
+    const float radius_sin_1 = radius_cos_0;
 
-        angle_offset_and_z_coordinate_and_radius{
-            .angle_offset = M_PI + M_PI_2,
-            .z_coordinate = z_coordinate_1_,
-            .radius = radius_,
-        },
+    const float radius_cos_2 = -radius_cos_0;
+    const float radius_sin_2 = -radius_sin_0;
+
+    const float radius_cos_3 = radius_sin_0;
+    const float radius_sin_3 = -radius_cos_0;
+
+    return {
+      (Eigen::Vector3f{} << center_(0) + radius_cos_0, center_(1) + radius_sin_0, z_coordinate_0_).finished(),
+      (Eigen::Vector3f{} << center_(0) + radius_cos_1, center_(1) + radius_sin_1, z_coordinate_1_).finished(),
+      (Eigen::Vector3f{} << center_(0) + radius_cos_2, center_(1) + radius_sin_2, z_coordinate_0_).finished(),
+      (Eigen::Vector3f{} << center_(0) + radius_cos_3, center_(1) + radius_sin_3, z_coordinate_1_).finished(),
     };
+  }
 
-    return angle_offsets_and_radii.transformed([this](const angle_offset_and_z_coordinate_and_radius& value) {
-      const float angle = value.angle_offset + orientation_;
-
-      const Eigen::Vector3f predicted_plate_position =
-          helper::rpad_zero(center_) +
-          (Eigen::Vector3f{} << value.radius * cosf(angle), value.radius * sinf(angle), value.z_coordinate).finished();
+  PF_TARGET_ATTRS [[nodiscard]] pf::util::device_array<predicted_plate, number_of_plates> predicted_plates() const noexcept {
+    return predicted_plate_positions().transformed([this](const Eigen::Vector3f& predicted_plate_position) {
+      const float radius_cos = predicted_plate_position(0) - center_(0);
+      const float radius_sin = predicted_plate_position(1) - center_(1);
 
       const Eigen::Vector3f predicted_plate_velocity =
-          helper::rpad_zero(center_velocity_) +
-          orientation_velocity_ * (Eigen::Vector3f{} << -value.radius * sinf(angle), value.radius * cosf(angle), 0.0f).finished();
+        (Eigen::Vector3f{} << center_velocity_(0) - orientation_velocity_ * radius_sin,
+         center_velocity_(1) + orientation_velocity_ * radius_cos,
+         0.0f)
+          .finished();
 
       return predicted_plate(predicted_plate_position, predicted_plate_velocity);
     });
@@ -139,13 +136,14 @@ class prediction {
       const float& orientation_velocity_noise_1,
       const Eigen::Vector2f& center_velocity_noise_0,
       const Eigen::Vector2f& center_velocity_noise_1) noexcept {
-    static constexpr float one_half = 1.0 / 2.0;
-    static constexpr float one_twelfth = 1.0 / 12.0;
+    static constexpr float one_half = 0.5f;
+    static constexpr float sqrt_one_twelfth = 0.28867513459481287f;
 
     const float radius_noise_scale = sqrtf(time_offset_seconds);
     const float z_coordinate_noise_scale = radius_noise_scale;
     const float velocity_noise_scale = radius_noise_scale;
-    const float position_noise_scale = sqrtf(one_twelfth) * powf(velocity_noise_scale, 3);
+    const float velocity_noise_scale_sq = velocity_noise_scale * velocity_noise_scale;
+    const float position_noise_scale = sqrt_one_twelfth * velocity_noise_scale_sq * velocity_noise_scale;
 
     const float d_radius = radius_noise_scale * radius_noise;
 
