@@ -121,6 +121,13 @@ def run_runtime_benchmark(
     observation = build_default_observation()
     config = build_default_config()
     particle_filter = fpoz.ParticleFilter(number_of_particles, observation, config)
+    reinitialize_filter = fpoz.ParticleFilter(number_of_particles, observation, config)
+
+    def initialize() -> None:
+        _ = fpoz.ParticleFilter(number_of_particles, observation, config)
+
+    def reinitialize() -> None:
+        reinitialize_filter.reinitialize(observation)
 
     def update_with_observation() -> None:
         particle_filter.update_state_with_observation(dt_seconds, observation)
@@ -132,6 +139,8 @@ def run_runtime_benchmark(
         _ = particle_filter.extrapolate_state(dt_seconds)
 
     methods: Sequence[tuple[str, Callable[[], None]]] = (
+        ("initialize", initialize),
+        ("reinitialize", reinitialize),
         ("update_state_with_observation", update_with_observation),
         ("update_state_sans_observation", update_sans_observation),
         ("extrapolate_state", extrapolate_state),
@@ -162,8 +171,11 @@ def run_profiler_workload(
     observation = build_default_observation()
     config = build_default_config()
     particle_filter = fpoz.ParticleFilter(number_of_particles, observation, config)
+    reinitialize_filter = fpoz.ParticleFilter(number_of_particles, observation, config)
 
     methods: dict[str, Callable[[], None]] = {
+        "initialize": lambda: fpoz.ParticleFilter(number_of_particles, observation, config),
+        "reinitialize": lambda: reinitialize_filter.reinitialize(observation),
         "update_state_with_observation": lambda: particle_filter.update_state_with_observation(dt_seconds, observation),
         "update_state_sans_observation": lambda: particle_filter.update_state_sans_observation(dt_seconds),
         "extrapolate_state": lambda: particle_filter.extrapolate_state(dt_seconds),
@@ -217,7 +229,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--profile-method",
         type=str,
         default=None,
-        choices=["update_state_with_observation", "update_state_sans_observation", "extrapolate_state"],
+        choices=["initialize", "reinitialize", "update_state_with_observation", "update_state_sans_observation", "extrapolate_state"],
         help=(
             "Run only the selected method for many iterations, intended for CUDA profiler runs "
             "(nsys/ncu)."
