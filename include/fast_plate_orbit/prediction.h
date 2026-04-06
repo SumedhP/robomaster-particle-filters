@@ -2,6 +2,8 @@
 
 #include <fast_plate_orbit/observation.h>
 #include <fast_plate_orbit/predicted_plate.h>
+#include <fast_plate_orbit/prediction_soa.h>
+#include <pf/config/target_config.h>
 #include <pf/util/device_array.h>
 
 #include <Eigen/Dense>
@@ -36,10 +38,8 @@ class prediction {
   static constexpr size_t number_of_plates = 4;
 
   float radius_;
-
   float orientation_;
   float orientation_velocity_;
-
   Eigen::Vector3f center_;
   Eigen::Vector2f center_velocity_;
 
@@ -49,6 +49,21 @@ class prediction {
   };
 
  public:
+  using soa_storage = prediction_soa::storage;
+
+  template <typename Tuple>
+  PF_TARGET_ATTRS [[nodiscard]] static prediction from_soa_tuple(const Tuple& tuple) noexcept {
+    return prediction_soa::from_tuple<prediction>(tuple);
+  }
+
+  template <typename Tuple>
+  PF_TARGET_ATTRS static void to_soa_tuple(Tuple& tuple, const prediction& value) noexcept {
+    prediction_soa::to_tuple(tuple, value);
+  }
+
+  // -------------------------------------------------------------------------
+  // Geometry & process model (unchanged)
+  // -------------------------------------------------------------------------
   [[nodiscard]] std::array<predicted_plate, number_of_plates> predicted_plates_for_host() const noexcept {
     return predicted_plates().to_host_array();
   }
@@ -92,35 +107,35 @@ class prediction {
       const float& center_z_position_noise,
       const Eigen::Vector2f& center_xy_velocity_noise_0,
       const Eigen::Vector2f& center_xy_velocity_noise_1) noexcept {
-    static constexpr float one_half = 1.0 / 2.0;
+    static constexpr float one_half    = 1.0 / 2.0;
     static constexpr float one_twelfth = 1.0 / 12.0;
 
-    const float radius_noise_scale = sqrtf(time_offset_seconds);
-    const float velocity_noise_scale = radius_noise_scale;
-    const float center_z_position_noise_scale = radius_noise_scale;
-    const float position_noise_scale = sqrtf(one_twelfth) * powf(velocity_noise_scale, 3);
+    const float radius_noise_scale              = sqrtf(time_offset_seconds);
+    const float velocity_noise_scale            = radius_noise_scale;
+    const float center_z_position_noise_scale   = radius_noise_scale;
+    const float position_noise_scale            = sqrtf(one_twelfth) * powf(velocity_noise_scale, 3);
 
-    const float d_radius = radius_noise_scale * radius_noise;
-    const float d_center_z = center_z_position_noise_scale * center_z_position_noise;
+    const float d_radius    = radius_noise_scale * radius_noise;
+    const float d_center_z  = center_z_position_noise_scale * center_z_position_noise;
 
     const float d_orientation_velocity = velocity_noise_scale * orientation_velocity_noise_1;
-    const float d_orientation = time_offset_seconds * orientation_velocity_ +
-                                one_half * time_offset_seconds * d_orientation_velocity +
-                                position_noise_scale * orientation_velocity_noise_0;
+    const float d_orientation =
+        time_offset_seconds * orientation_velocity_ +
+        one_half * time_offset_seconds * d_orientation_velocity +
+        position_noise_scale * orientation_velocity_noise_0;
 
     const Eigen::Vector2f d_center_velocity = velocity_noise_scale * center_xy_velocity_noise_1;
-    const Eigen::Vector3f d_center = time_offset_seconds * helper::rpad_zero(center_velocity_) +
-                                     one_half * time_offset_seconds * helper::rpad_zero(d_center_velocity) +
-                                     position_noise_scale * helper::rpad_zero(center_xy_velocity_noise_0) +
-                                     helper::lpad_zero(d_center_z);
+    const Eigen::Vector3f d_center =
+        time_offset_seconds * helper::rpad_zero(center_velocity_) +
+        one_half * time_offset_seconds * helper::rpad_zero(d_center_velocity) +
+        position_noise_scale * helper::rpad_zero(center_xy_velocity_noise_0) +
+        helper::lpad_zero(d_center_z);
 
-    radius_ = helper::to_radius(radius_ + d_radius);
-
-    orientation_ = helper::to_orientation(orientation_ + d_orientation);
+    radius_               = helper::to_radius(radius_ + d_radius);
+    orientation_          = helper::to_orientation(orientation_ + d_orientation);
     orientation_velocity_ = orientation_velocity_ + d_orientation_velocity;
-
-    center_ = center_ + d_center;
-    center_velocity_ = center_velocity_ + d_center_velocity;
+    center_               = center_ + d_center;
+    center_velocity_      = center_velocity_ + d_center_velocity;
   }
 
   PF_TARGET_ATTRS [[nodiscard]] const float& radius() const noexcept { return radius_; }

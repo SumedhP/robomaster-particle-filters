@@ -1,5 +1,7 @@
 #pragma once
 
+#include <plate_orbit_v2/prediction_soa.h>
+#include <pf/config/target_config.h>
 #include <pf/util/device_array.h>
 #include <plate_orbit_v2/observation.h>
 #include <plate_orbit_v2/predicted_plate.h>
@@ -45,7 +47,7 @@ PF_TARGET_ATTRS inline void update_value_offsets(
     float& value_1) noexcept {
   constexpr float offset_limit = U::offset_limit;
 
-  const float value_common = 0.5f * (value_0 + value_1) + d_value_common;
+  const float value_common   = 0.5f * (value_0 + value_1) + d_value_common;
   const float value_offset_0 = thrust::min(offset_limit, thrust::max(-offset_limit, value_0 + d_value_0 - value_common));
   const float value_offset_1 = thrust::min(offset_limit, thrust::max(-offset_limit, value_1 + d_value_1 - value_common));
 
@@ -61,13 +63,10 @@ class prediction {
 
   float radius_0_;
   float radius_1_;
-
   float z_coordinate_0_;
   float z_coordinate_1_;
-
   float orientation_;
   float orientation_velocity_;
-
   Eigen::Vector2f center_;
   Eigen::Vector2f center_velocity_;
 
@@ -78,35 +77,31 @@ class prediction {
   };
 
  public:
+  using soa_storage = prediction_soa::storage;
+
+  template <typename Tuple>
+  PF_TARGET_ATTRS [[nodiscard]] static prediction from_soa_tuple(const Tuple& tuple) noexcept {
+    return prediction_soa::from_tuple<prediction>(tuple);
+  }
+
+  template <typename Tuple>
+  PF_TARGET_ATTRS static void to_soa_tuple(Tuple& tuple, const prediction& value) noexcept {
+    prediction_soa::to_tuple(tuple, value);
+  }
+
+  // -------------------------------------------------------------------------
+  // Geometry & process model (unchanged)
+  // -------------------------------------------------------------------------
   [[nodiscard]] std::array<predicted_plate, number_of_plates> predicted_plates_for_host() const noexcept {
     return predicted_plates().to_host_array();
   }
 
   PF_TARGET_ATTRS [[nodiscard]] pf::util::device_array<predicted_plate, number_of_plates> predicted_plates() const noexcept {
     const pf::util::device_array<angle_offset_and_z_coordinate_and_radius, number_of_plates> angle_offsets_and_radii = {
-        angle_offset_and_z_coordinate_and_radius{
-            .angle_offset = 0.0f,
-            .z_coordinate = z_coordinate_0_,
-            .radius = radius_0_,
-        },
-
-        angle_offset_and_z_coordinate_and_radius{
-            .angle_offset = M_PI_2,
-            .z_coordinate = z_coordinate_1_,
-            .radius = radius_1_,
-        },
-
-        angle_offset_and_z_coordinate_and_radius{
-            .angle_offset = M_PI,
-            .z_coordinate = z_coordinate_0_,
-            .radius = radius_0_,
-        },
-
-        angle_offset_and_z_coordinate_and_radius{
-            .angle_offset = M_PI + M_PI_2,
-            .z_coordinate = z_coordinate_1_,
-            .radius = radius_1_,
-        },
+        angle_offset_and_z_coordinate_and_radius{.angle_offset = 0.0f,          .z_coordinate = z_coordinate_0_, .radius = radius_0_},
+        angle_offset_and_z_coordinate_and_radius{.angle_offset = M_PI_2,        .z_coordinate = z_coordinate_1_, .radius = radius_1_},
+        angle_offset_and_z_coordinate_and_radius{.angle_offset = M_PI,          .z_coordinate = z_coordinate_0_, .radius = radius_0_},
+        angle_offset_and_z_coordinate_and_radius{.angle_offset = M_PI + M_PI_2, .z_coordinate = z_coordinate_1_, .radius = radius_1_},
     };
 
     return angle_offsets_and_radii.transformed([this](const angle_offset_and_z_coordinate_and_radius& value) {
@@ -148,30 +143,33 @@ class prediction {
       const float& orientation_velocity_noise_1,
       const Eigen::Vector2f& center_velocity_noise_0,
       const Eigen::Vector2f& center_velocity_noise_1) noexcept {
-    static constexpr float one_half = 1.0 / 2.0;
+    static constexpr float one_half    = 1.0 / 2.0;
     static constexpr float one_twelfth = 1.0 / 12.0;
 
-    const float radius_noise_scale = sqrtf(time_offset_seconds);
-    const float z_coordinate_noise_scale = radius_noise_scale;
-    const float velocity_noise_scale = radius_noise_scale;
-    const float position_noise_scale = sqrtf(one_twelfth) * powf(velocity_noise_scale, 3);
+    const float radius_noise_scale        = sqrtf(time_offset_seconds);
+    const float z_coordinate_noise_scale  = radius_noise_scale;
+    const float velocity_noise_scale      = radius_noise_scale;
+    const float position_noise_scale      = sqrtf(one_twelfth) * powf(velocity_noise_scale, 3);
 
     const float d_radius_common = radius_noise_scale * radius_noise_common;
-    const float d_radius_0 = radius_noise_scale * radius_noise_0;
-    const float d_radius_1 = radius_noise_scale * radius_noise_1;
+    const float d_radius_0      = radius_noise_scale * radius_noise_0;
+    const float d_radius_1      = radius_noise_scale * radius_noise_1;
 
     const float d_z_coordinate_common = z_coordinate_noise_scale * z_coordinate_noise_common;
-    const float d_z_coordinate_0 = z_coordinate_noise_scale * z_coordinate_noise_0;
-    const float d_z_coordinate_1 = z_coordinate_noise_scale * z_coordinate_noise_1;
+    const float d_z_coordinate_0      = z_coordinate_noise_scale * z_coordinate_noise_0;
+    const float d_z_coordinate_1      = z_coordinate_noise_scale * z_coordinate_noise_1;
 
     const float d_orientation_velocity = velocity_noise_scale * orientation_velocity_noise_1;
-    const float d_orientation = time_offset_seconds * orientation_velocity_ +
-                                one_half * time_offset_seconds * d_orientation_velocity +
-                                position_noise_scale * orientation_velocity_noise_0;
+    const float d_orientation =
+        time_offset_seconds * orientation_velocity_ +
+        one_half * time_offset_seconds * d_orientation_velocity +
+        position_noise_scale * orientation_velocity_noise_0;
 
     const Eigen::Vector2f d_center_velocity = velocity_noise_scale * center_velocity_noise_1;
-    const Eigen::Vector2f d_center = time_offset_seconds * center_velocity_ + one_half * time_offset_seconds * d_center_velocity +
-                                     position_noise_scale * center_velocity_noise_0;
+    const Eigen::Vector2f d_center =
+        time_offset_seconds * center_velocity_ +
+        one_half * time_offset_seconds * d_center_velocity +
+        position_noise_scale * center_velocity_noise_0;
 
     helper::update_value_offsets<helper::radii_update_configuration>(
         d_radius_common, d_radius_0, d_radius_1, radius_0_, radius_1_);
@@ -179,19 +177,16 @@ class prediction {
     helper::update_value_offsets<helper::z_coordinate_update_configuration>(
         d_z_coordinate_common, d_z_coordinate_0, d_z_coordinate_1, z_coordinate_0_, z_coordinate_1_);
 
-    orientation_ = helper::to_orientation(orientation_ + d_orientation);
+    orientation_          = helper::to_orientation(orientation_ + d_orientation);
     orientation_velocity_ = orientation_velocity_ + d_orientation_velocity;
-
-    center_ = center_ + d_center;
-    center_velocity_ = center_velocity_ + d_center_velocity;
+    center_               = center_ + d_center;
+    center_velocity_      = center_velocity_ + d_center_velocity;
   }
 
   PF_TARGET_ATTRS [[nodiscard]] const float& radius_0() const noexcept { return radius_0_; }
   PF_TARGET_ATTRS [[nodiscard]] const float& radius_1() const noexcept { return radius_1_; }
-
   PF_TARGET_ATTRS [[nodiscard]] const float& z_coordinate_0() const noexcept { return z_coordinate_0_; }
   PF_TARGET_ATTRS [[nodiscard]] const float& z_coordinate_1() const noexcept { return z_coordinate_1_; }
-
   PF_TARGET_ATTRS [[nodiscard]] const float& orientation() const noexcept { return orientation_; }
   PF_TARGET_ATTRS [[nodiscard]] const float& orientation_velocity() const noexcept { return orientation_velocity_; }
   PF_TARGET_ATTRS [[nodiscard]] const Eigen::Vector2f& center() const noexcept { return center_; }
