@@ -197,14 +197,16 @@ def run_profiler_workload(
 
 def print_results(number_of_particles: int, results: Sequence[BenchmarkResult]) -> None:
     print(f"\nParticles: {number_of_particles}")
-    print("method,mean_us,std_us,min_us,max_us")
+    method_w = 32
+    num_w = 12
+    print(f"{'method':<{method_w}}, {'mean_us':>{num_w}}, {'std_us':>{num_w}}, {'min_us':>{num_w}}, {'max_us':>{num_w}}")
     for result in results:
         print(
-            f"{result.method}, \t"
-            f"{result.mean_us:.3f}, \t"
-            f"{result.std_us:.3f}, \t"
-            f"{result.min_us:.3f}, \t"
-            f"{result.max_us:.3f}"
+            f"{result.method:<{method_w}}, "
+            f"{result.mean_us:{num_w}.3f}, "
+            f"{result.std_us:{num_w}.3f}, "
+            f"{result.min_us:{num_w}.3f}, "
+            f"{result.max_us:{num_w}.3f}"
         )
 
 
@@ -216,7 +218,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
         )
     )
     parser.add_argument("--particle-count", type=int, default=(1 << 20), help="Number of particles to use.")
-    parser.add_argument("--runs", type=int, default=1000, help="Timed runs per method.")
+    parser.add_argument("--runs", type=int, default=100, help="Timed runs per method.")
     parser.add_argument("--warmup", type=int, default=10, help="Warmup iterations per method.")
     parser.add_argument("--dt-seconds", type=float, default=0.016, help="Delta time passed to each method call.")
     parser.add_argument(
