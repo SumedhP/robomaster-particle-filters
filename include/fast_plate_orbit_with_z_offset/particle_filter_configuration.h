@@ -119,11 +119,11 @@ struct scalar_reduction_state {
   float center_vel_y;
   std::uint32_t count;
 
-  PF_TARGET_ONLY_ATTRS [[nodiscard]] static constexpr scalar_reduction_state zero() noexcept {
+  PF_TARGET_ATTRS [[nodiscard]] static constexpr scalar_reduction_state zero() noexcept {
     return scalar_reduction_state{0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, std::uint32_t{}};
   }
 
-  PF_TARGET_ONLY_ATTRS [[nodiscard]] static scalar_reduction_state from_particle(const prediction& p) noexcept {
+  PF_TARGET_ATTRS [[nodiscard]] static scalar_reduction_state from_particle(const prediction& p) noexcept {
     return scalar_reduction_state{
         p.radius(),
         p.z_coordinate_0(),
@@ -138,7 +138,7 @@ struct scalar_reduction_state {
   }
 
   // Reconstruct a prediction from the accumulated scalar means.
-  PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction most_likely_particle() const noexcept {
+  PF_TARGET_ATTRS [[nodiscard]] prediction most_likely_particle() const noexcept {
     return prediction(
         radius,
         z_coordinate_0,
@@ -155,7 +155,7 @@ struct most_likely_particle_reduction_impl {
 
   static constexpr float half_pi = M_PI_2;
 
-  PF_TARGET_ONLY_ATTRS [[nodiscard]] inline state_type
+  PF_TARGET_ATTRS [[nodiscard]] inline state_type
   operator()(const state_type& a, const state_type& b) const noexcept {
     if (a.count == 0) return b;
     if (b.count == 0) return a;
