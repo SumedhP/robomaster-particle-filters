@@ -18,6 +18,10 @@ prediction particle_filter::extrapolate_state(const float& time_offset_seconds) 
   return p_impl_->extrapolate_state(time_offset_seconds);
 }
 
+void particle_filter::reinitialize(const observation& initial_observation) noexcept {
+  p_impl_->reinitialize(initial_observation);
+}
+
 void particle_filter::update_state_sans_observation(const float& time_offset_seconds) noexcept {
   p_impl_->update_state_sans_observation(time_offset_seconds);
 }
