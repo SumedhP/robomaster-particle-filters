@@ -105,7 +105,12 @@ class prediction {
           helper::rpad_zero(center_) +
           (Eigen::Vector3f{} << value.radius * cosf(angle), value.radius * sinf(angle), value.z_coordinate).finished();
 
-      return predicted_plate(predicted_plate_position);
+      const Eigen::Vector3f predicted_plate_velocity =
+          helper::rpad_zero(center_velocity_) +
+          orientation_velocity_ *
+              (Eigen::Vector3f{} << -value.radius * sinf(angle), value.radius * cosf(angle), 0.0f).finished();
+
+      return predicted_plate(predicted_plate_position, predicted_plate_velocity);
     });
   }
 

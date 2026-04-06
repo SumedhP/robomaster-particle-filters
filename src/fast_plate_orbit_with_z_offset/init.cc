@@ -24,8 +24,10 @@ void init(py::module_& m) noexcept {
       .def("position_diagonal_covariance", &observed_plate::position_diagonal_covariance);
 
   py::class_<predicted_plate>(fast_plate_orbit_with_z_offset, "PredictedPlate")
+      .def(py::init<Eigen::Vector3f, Eigen::Vector3f>())
       .def(py::init<Eigen::Vector3f>())
-      .def("position", &predicted_plate::position);
+      .def("position", &predicted_plate::position)
+      .def("velocity", &predicted_plate::velocity);
 
   py::class_<observation>(fast_plate_orbit_with_z_offset, "Observation")
       .def_static("from_one_plate", &observation::from_one_plate)
