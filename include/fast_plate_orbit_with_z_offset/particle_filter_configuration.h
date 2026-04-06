@@ -16,6 +16,7 @@
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 namespace fast_plate_orbit_with_z_offset {
 
@@ -23,137 +24,308 @@ namespace helper {
 
 PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sigmoid(const float& x) noexcept { return -logf(1.0f + expf(-x)); }
 
+// ---------------------------------------------------------------------------
+// Scalar plate-position helper
+//
+// Computes the 3-D position of one plate directly from raw scalars, without
+// constructing a predicted_plate object.  Used by both the sorting network
+// and the scalar log-density path so that no Eigen temporaries are allocated
+// on the device.
+// ---------------------------------------------------------------------------
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline void plate_position_scalars(
+    const float cx, const float cy,
+    const float radius, const float angle,
+    const float z_coordinate,
+    float& px, float& py, float& pz) noexcept {
+  px = cx + radius * cosf(angle);
+  py = cy + radius * sinf(angle);
+  pz = z_coordinate;
+}
+
+// Squared distance from observer (ox,oy,oz) to plate position (px,py,pz).
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float sq_dist(
+    const float ox, const float oy, const float oz,
+    const float px, const float py, const float pz) noexcept {
+  const float dx = ox - px;
+  const float dy = oy - py;
+  const float dz = oz - pz;
+  return dx * dx + dy * dy + dz * dz;
+}
+
+// Unnormalised normal log-density for a 3-D diagonal-covariance Gaussian,
+// computed as plain scalar arithmetic.  Equivalent to the Eigen path:
+//   -0.5f * error.cwiseProduct(cov.cwiseInverse()).dot(error)
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float scalar_log_density_3(
+    const float ex, const float ey, const float ez,
+    const float vx, const float vy, const float vz) noexcept {
+  return -0.5f * (ex * ex / vx + ey * ey / vy + ez * ez / vz);
+}
+
+// ---------------------------------------------------------------------------
+// 4-element sorting network (Bose-Nelson optimal, 5 compare-swaps)
+//
+// Sorts four float keys and their associated uint8 index tags in-place.
+// Completely branchless on GPU: the conditional swap compiles to a predicated
+// move (SELP / FSEL) with no divergence.
+// ---------------------------------------------------------------------------
+PF_TARGET_ONLY_ATTRS inline void cs(float& ka, uint8_t& ia, float& kb, uint8_t& ib) noexcept {
+  const bool swap = kb < ka;
+  const float  tmp_k = swap ? ka : kb;  ka = swap ? kb : ka;  kb = tmp_k;
+  const uint8_t tmp_i = swap ? ia : ib; ia = swap ? ib : ia; ib = tmp_i;
+}
+
+PF_TARGET_ONLY_ATTRS inline void sort4(
+    float k0, float k1, float k2, float k3,
+    uint8_t& i0, uint8_t& i1, uint8_t& i2, uint8_t& i3) noexcept {
+  // Initialise index tags.
+  i0 = 0; i1 = 1; i2 = 2; i3 = 3;
+  // Bose-Nelson network for n=4 (5 comparators).
+  cs(k0, i0, k1, i1);
+  cs(k2, i2, k3, i3);
+  cs(k0, i0, k2, i2);
+  cs(k1, i1, k3, i3);
+  cs(k1, i1, k2, i2);
+}
+
 }  // namespace helper
 
-struct most_likely_particle_reduction_impl {
-  using state_type = pf::filter::particle_reduction_state<prediction>;
-  static constexpr float half_pi = M_PI_2;
+// =============================================================================
+// Change 2 — Scalar SOA reduction
+//
+// Instead of storing a full `prediction` object inside particle_reduction_state,
+// the reduction accumulates each scalar field as a weighted sum.  The blending
+// weight is (count_b / total), exactly as before, but it is applied to raw
+// floats rather than to Eigen vectors or prediction objects.
+//
+// The orientation branch-selection (choosing among the five pi/2-spaced
+// candidates to minimise angular distance to b) still happens in the reduction
+// operator, but operates on a single float rather than a device_array lookup.
+//
+// `most_likely_particle()` reconstructs a prediction object exactly once, at
+// the point where the caller actually needs it, rather than maintaining a live
+// prediction throughout the tree reduction.
+// =============================================================================
+struct scalar_reduction_state {
+  // Each field is the running weighted mean of that scalar across the
+  // particles seen so far.  `count` drives the blending weight.
+  float radius;
+  float z_coordinate_0;
+  float z_coordinate_1;
+  float orientation;
+  float orientation_velocity;
+  float center_x;
+  float center_y;
+  float center_vel_x;
+  float center_vel_y;
+  std::uint32_t count;
 
-  struct orientation_and_z_coordinates_and_radius {
-    float orientation;
+  PF_TARGET_ONLY_ATTRS [[nodiscard]] static constexpr scalar_reduction_state zero() noexcept {
+    return scalar_reduction_state{0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, std::uint32_t{}};
+  }
 
-    float radius_;
+  PF_TARGET_ONLY_ATTRS [[nodiscard]] static scalar_reduction_state from_particle(const prediction& p) noexcept {
+    return scalar_reduction_state{
+        p.radius(),
+        p.z_coordinate_0(),
+        p.z_coordinate_1(),
+        p.orientation(),
+        p.orientation_velocity(),
+        p.center().x(),
+        p.center().y(),
+        p.center_velocity().x(),
+        p.center_velocity().y(),
+        std::uint32_t{1}};
+  }
 
-    float z_coordinate_0;
-    float z_coordinate_1;
-  };
-
-  PF_TARGET_ONLY_ATTRS [[nodiscard]] inline state_type operator()(const state_type& a, const state_type& b) const noexcept {
-    // this does not necessarily provide the correct mean in the MLE sense,
-    // though it gives a reasonable approximation for most inputs.
-
-    const prediction a_particle = a.most_likely_particle();
-    const prediction b_particle = b.most_likely_particle();
-
-    const pf::util::device_array<orientation_and_z_coordinates_and_radius, 5> candidates = {
-      orientation_and_z_coordinates_and_radius{
-            .orientation = a_particle.orientation() + 0.0f * half_pi,
-            .radius_ = a_particle.radius(),
-            .z_coordinate_0 = a_particle.z_coordinate_0(),
-            .z_coordinate_1 = a_particle.z_coordinate_1(),
-        },
-
-      orientation_and_z_coordinates_and_radius{
-            .orientation = a_particle.orientation() + 1.0f * half_pi,
-            .radius_ = a_particle.radius(),
-            .z_coordinate_0 = a_particle.z_coordinate_1(),
-            .z_coordinate_1 = a_particle.z_coordinate_0(),
-        },
-
-      orientation_and_z_coordinates_and_radius{
-            .orientation = a_particle.orientation() - 1.0f * half_pi,
-            .radius_ = a_particle.radius(),
-            .z_coordinate_0 = a_particle.z_coordinate_1(),
-            .z_coordinate_1 = a_particle.z_coordinate_0(),
-        },
-
-      orientation_and_z_coordinates_and_radius{
-            .orientation = a_particle.orientation() + 2.0f * half_pi,
-            .radius_ = a_particle.radius(),
-            .z_coordinate_0 = a_particle.z_coordinate_0(),
-            .z_coordinate_1 = a_particle.z_coordinate_1(),
-        },
-
-      orientation_and_z_coordinates_and_radius{
-            .orientation = a_particle.orientation() - 2.0f * half_pi,
-            .radius_ = a_particle.radius(),
-            .z_coordinate_0 = a_particle.z_coordinate_0(),
-            .z_coordinate_1 = a_particle.z_coordinate_1(),
-        },
-    };
-
-    const auto target = b_particle.orientation();
-    const auto [a_orientation, a_radius, a_z_coordinate_0, a_z_coordinate_1] =
-        *candidates.minimum_by([target](const auto& value) { return abs(target - value.orientation); });
-
-    const float alpha = static_cast<float>(b.count()) / static_cast<float>(a.count() + b.count());
-    const float c_alpha = 1.0f - alpha;
-
-    const float radius = c_alpha * a_radius + alpha * b_particle.radius();
-
-    const float z_coordinate_0 = c_alpha * a_z_coordinate_0 + alpha * b_particle.z_coordinate_0();
-    const float z_coordinate_1 = c_alpha * a_z_coordinate_1 + alpha * b_particle.z_coordinate_1();
-
-    const float orientation = c_alpha * a_orientation + alpha * b_particle.orientation();
-    const float orientation_velocity = c_alpha * a_particle.orientation_velocity() + alpha * b_particle.orientation_velocity();
-
-    const Eigen::Vector2f center = c_alpha * a_particle.center() + alpha * b_particle.center();
-    const Eigen::Vector2f center_velocity = c_alpha * a_particle.center_velocity() + alpha * b_particle.center_velocity();
-
-    const auto state = prediction(radius, z_coordinate_0, z_coordinate_1, orientation, orientation_velocity, center, center_velocity);
-
-    return state_type{state, a.count() + b.count()};
+  // Reconstruct a prediction from the accumulated scalar means.
+  PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction most_likely_particle() const noexcept {
+    return prediction(
+        radius,
+        z_coordinate_0,
+        z_coordinate_1,
+        orientation,
+        orientation_velocity,
+        Eigen::Vector2f{center_x, center_y},
+        Eigen::Vector2f{center_vel_x, center_vel_y});
   }
 };
 
+struct most_likely_particle_reduction_impl {
+  using state_type = scalar_reduction_state;
+
+  static constexpr float half_pi = M_PI_2;
+
+  PF_TARGET_ONLY_ATTRS [[nodiscard]] inline state_type
+  operator()(const state_type& a, const state_type& b) const noexcept {
+    if (a.count == 0) return b;
+    if (b.count == 0) return a;
+
+    // --- Orientation symmetry resolution -----------------------------------
+    // The orbit has pi/2 symmetry.  The five candidates cover the full range
+    // of equivalent orientations.  When the z-coordinates swap (±pi/2, ±pi),
+    // the z_coordinate pair must be swapped to stay geometrically consistent.
+    // We select the candidate whose orientation is closest to b's, then carry
+    // the corresponding z-coordinates.
+
+    struct candidate { float orientation; float z0; float z1; };
+    const candidate candidates[5] = {
+        {a.orientation + 0.0f * half_pi, a.z_coordinate_0, a.z_coordinate_1},
+        {a.orientation + 1.0f * half_pi, a.z_coordinate_1, a.z_coordinate_0},
+        {a.orientation - 1.0f * half_pi, a.z_coordinate_1, a.z_coordinate_0},
+        {a.orientation + 2.0f * half_pi, a.z_coordinate_0, a.z_coordinate_1},
+        {a.orientation - 2.0f * half_pi, a.z_coordinate_0, a.z_coordinate_1},
+    };
+
+    // Find closest candidate to b.orientation — pure scalar comparisons.
+    int best = 0;
+    float best_dist = fabsf(b.orientation - candidates[0].orientation);
+    for (int i = 1; i < 5; ++i) {
+      const float d = fabsf(b.orientation - candidates[i].orientation);
+      if (d < best_dist) { best_dist = d; best = i; }
+    }
+
+    const float alpha   = static_cast<float>(b.count) / static_cast<float>(a.count + b.count);
+    const float c_alpha = 1.0f - alpha;
+
+    return scalar_reduction_state{
+        c_alpha * a.radius              + alpha * b.radius,
+        c_alpha * candidates[best].z0   + alpha * b.z_coordinate_0,
+        c_alpha * candidates[best].z1   + alpha * b.z_coordinate_1,
+        c_alpha * candidates[best].orientation + alpha * b.orientation,
+        c_alpha * a.orientation_velocity + alpha * b.orientation_velocity,
+        c_alpha * a.center_x            + alpha * b.center_x,
+        c_alpha * a.center_y            + alpha * b.center_y,
+        c_alpha * a.center_vel_x        + alpha * b.center_vel_x,
+        c_alpha * a.center_vel_y        + alpha * b.center_vel_y,
+        a.count + b.count,
+    };
+  }
+};
+
+// =============================================================================
+// particle_filter_configuration
+// =============================================================================
 class particle_filter_configuration {
  private:
   particle_filter_configuration_parameters params_;
 
  public:
   using observation_type = observation;
-  using prediction_type = prediction;
-  using sampler_type = util::default_rv_sampler;
+  using prediction_type  = prediction;
+  using sampler_type     = util::default_rv_sampler;
 
+  // The reduction type is now scalar_reduction_state rather than
+  // particle_reduction_state<prediction>.  particle_filter.h calls
+  //   config_.most_likely_particle_reduction()
+  // and then ultimately calls .most_likely_particle() on the result;
+  // scalar_reduction_state satisfies both.
   [[nodiscard]] most_likely_particle_reduction_impl most_likely_particle_reduction() const noexcept {
     return most_likely_particle_reduction_impl{};
   }
 
+  // ===========================================================================
+  // Change 3 — Fixed-size sorting network + scalar scoring
+  //
+  // Original path:
+  //   1. given.predicted_plates()  — builds 4 predicted_plate{Vector3f, Vector3f}
+  //   2. selection_sort_by(squaredNorm)  — O(n²) comparison loop on structs
+  //   3. transformed(visibility logit)  — another pass over 4 structs
+  //   4. unnormalized_normal_log_density(Vector3f error)  — Eigen dot product
+  //
+  // New path:
+  //   1. Compute the 4 plate positions as scalar triples inline (no struct alloc)
+  //   2. Compute 4 squared distances as scalars
+  //   3. Sort the 4 distance keys + index tags with a 5-comparator Bose-Nelson
+  //      network — zero divergence, fully unrolled by the compiler
+  //   4. Compute visibility logits as scalar multiplications
+  //   5. Compute log-density as plain (ex²/vx + ey²/vy + ez²/vz) arithmetic
+  // ===========================================================================
   PF_TARGET_ONLY_ATTRS [[nodiscard]] float conditional_log_likelihood(
       const util::default_rv_sampler& sampler,
       const observation& state,
       const prediction& given) const noexcept {
-    const auto predicted_plates = given.predicted_plates().selection_sort_by(
-        [state](const predicted_plate& a) { return (state.observer_position() - a.position()).squaredNorm(); });
 
-    const auto [pred_0, pred_1, pred_2, pred_3] = predicted_plates;
-    const Eigen::Vector2f observer_delta = state.observer_position().head<2>() - given.center();
+    // ---- Plate positions (scalars only) ------------------------------------
+    // Plates are at angles: θ, θ+π/2, θ+π, θ+3π/2
+    // z-coordinates alternate: z0, z1, z0, z1
+    const float cx = given.center().x();
+    const float cy = given.center().y();
+    const float r  = given.radius();
+    const float th = given.orientation();
 
-    const auto [logit_visibility_0, logit_visibility_1, logit_visibility_2, logit_visibility_3] =
-        predicted_plates.transformed([&, this](const predicted_plate& plate) {
-          const Eigen::Vector2f plate_delta = plate.position().head<2>() - given.center();
-          const float similarity = observer_delta.dot(plate_delta) / (observer_delta.norm() * plate_delta.norm());
-          return params_.visibility_logit_coefficient * similarity;
-        });
+    float px[4], py[4], pz[4];
+    helper::plate_position_scalars(cx, cy, r, th + 0.0f,         given.z_coordinate_0(), px[0], py[0], pz[0]);
+    helper::plate_position_scalars(cx, cy, r, th + M_PI_2,       given.z_coordinate_1(), px[1], py[1], pz[1]);
+    helper::plate_position_scalars(cx, cy, r, th + M_PI,         given.z_coordinate_0(), px[2], py[2], pz[2]);
+    helper::plate_position_scalars(cx, cy, r, th + M_PI + M_PI_2,given.z_coordinate_1(), px[3], py[3], pz[3]);
 
-    auto log_p_of = [&sampler](const observed_plate& x, const predicted_plate& y) {
-      const auto error = (x.position() - y.position()).eval();
-      return sampler.unnormalized_normal_log_density(x.position_diagonal_covariance(), error);
+    // ---- Sort by distance to observer (sorting network) -------------------
+    const float ox = state.observer_position().x();
+    const float oy = state.observer_position().y();
+    const float oz = state.observer_position().z();
+
+    float d0 = helper::sq_dist(ox, oy, oz, px[0], py[0], pz[0]);
+    float d1 = helper::sq_dist(ox, oy, oz, px[1], py[1], pz[1]);
+    float d2 = helper::sq_dist(ox, oy, oz, px[2], py[2], pz[2]);
+    float d3 = helper::sq_dist(ox, oy, oz, px[3], py[3], pz[3]);
+
+    uint8_t i0, i1, i2, i3;
+    helper::sort4(d0, d1, d2, d3, i0, i1, i2, i3);
+    // i0 now holds the index of the closest plate, i1 the second-closest, etc.
+
+    // ---- Visibility logits (scalar) ----------------------------------------
+    // observer_delta and plate_delta are 2-D (xy plane only, z ignored for
+    // similarity).  We avoid Eigen temporaries by working with raw scalars.
+    const float odx = ox - cx;
+    const float ody = oy - cy;
+    const float od_norm = sqrtf(odx * odx + ody * ody);
+
+    auto visibility_logit = [&](const uint8_t idx) -> float {
+      const float pdx = px[idx] - cx;
+      const float pdy = py[idx] - cy;
+      const float pd_norm = sqrtf(pdx * pdx + pdy * pdy);
+      const float similarity = (odx * pdx + ody * pdy) / (od_norm * pd_norm);
+      return params_.visibility_logit_coefficient * similarity;
     };
 
-    if (!state.plate_two().has_value()) {
-      const float pr_visibility = helper::log_sigmoid(logit_visibility_0) + helper::log_sigmoid(-logit_visibility_1) +
-                                  helper::log_sigmoid(-logit_visibility_2) + helper::log_sigmoid(-logit_visibility_3);
+    const float lv0 = visibility_logit(i0);
+    const float lv1 = visibility_logit(i1);
+    const float lv2 = visibility_logit(i2);
+    const float lv3 = visibility_logit(i3);
 
-      return pr_visibility + log_p_of(state.plate_one(), pred_0);
+    // ---- Log-density (scalar) ---------------------------------------------
+    // observed_plate carries position and diagonal covariance as Vector3f.
+    // We extract x/y/z components and compute the Gaussian score as three
+    // scalar divisions — no Eigen allocation, no virtual dispatch.
+    auto log_p_of = [&](const observed_plate& obs, const uint8_t pred_idx) -> float {
+      const float ex = obs.position().x() - px[pred_idx];
+      const float ey = obs.position().y() - py[pred_idx];
+      const float ez = obs.position().z() - pz[pred_idx];
+      const float vx = obs.position_diagonal_covariance().x();
+      const float vy = obs.position_diagonal_covariance().y();
+      const float vz = obs.position_diagonal_covariance().z();
+      return helper::scalar_log_density_3(ex, ey, ez, vx, vy, vz);
+    };
+
+    // ---- Combine -----------------------------------------------------------
+    if (!state.plate_two().has_value()) {
+      const float pr_visibility =
+          helper::log_sigmoid( lv0) +
+          helper::log_sigmoid(-lv1) +
+          helper::log_sigmoid(-lv2) +
+          helper::log_sigmoid(-lv3);
+      return pr_visibility + log_p_of(state.plate_one(), i0);
     }
 
-    const float log_pr_visibility = helper::log_sigmoid(logit_visibility_0) + helper::log_sigmoid(logit_visibility_1) +
-                                    helper::log_sigmoid(-logit_visibility_2) + helper::log_sigmoid(-logit_visibility_3);
+    const float log_pr_visibility =
+        helper::log_sigmoid( lv0) +
+        helper::log_sigmoid( lv1) +
+        helper::log_sigmoid(-lv2) +
+        helper::log_sigmoid(-lv3);
 
-    const float assignment_one = log_p_of(state.plate_one(), pred_0) + log_p_of(*state.plate_two(), pred_1);
-    const float assignment_two = log_p_of(state.plate_one(), pred_1) + log_p_of(*state.plate_two(), pred_0);
-    return log_pr_visibility + std::max(assignment_one, assignment_two);
+    const float assignment_one = log_p_of(state.plate_one(), i0) + log_p_of(*state.plate_two(), i1);
+    const float assignment_two = log_p_of(state.plate_one(), i1) + log_p_of(*state.plate_two(), i0);
+    return log_pr_visibility + fmaxf(assignment_one, assignment_two);
   }
 
   PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction sample_from(util::default_rv_sampler& sampler, const observation& state)
@@ -167,12 +339,11 @@ class particle_filter_configuration {
     const float radius_variance =
         state.plate_two().has_value() ? params_.radius_prior_variance_two_plates : params_.radius_prior_variance_one_plate;
 
-    const float radius = orbit.radius + sampler.normal_sample(radius_variance);
-
-    const float orientation = orbit.orientation;
+    const float radius               = orbit.radius + sampler.normal_sample(radius_variance);
+    const float orientation          = orbit.orientation;
     const float orientation_velocity = sampler.normal_sample(params_.orientation_velocity_prior_variance);
 
-    const Eigen::Vector3f center = orbit.center + sampler.normal_sample(state.plate_one().position_diagonal_covariance());
+    const Eigen::Vector3f center    = orbit.center + sampler.normal_sample(state.plate_one().position_diagonal_covariance());
     const Eigen::Vector2f center_xy = center.head<2>();
 
     const float z_coordinate_0 = center.tail<1>().value();
@@ -188,8 +359,8 @@ class particle_filter_configuration {
     const float radius_noise = sampler.normal_sample(params_.radius_process_variance);
 
     const float z_coordinate_noise_common = sampler.normal_sample(params_.z_coordinate_common_process_variance);
-    const float z_coordinate_noise_0 = sampler.normal_sample(params_.z_coordinate_offset_process_variance);
-    const float z_coordinate_noise_1 = sampler.normal_sample(params_.z_coordinate_offset_process_variance);
+    const float z_coordinate_noise_0      = sampler.normal_sample(params_.z_coordinate_offset_process_variance);
+    const float z_coordinate_noise_1      = sampler.normal_sample(params_.z_coordinate_offset_process_variance);
 
     const float orientation_velocity_noise_0 = sampler.normal_sample(params_.orientation_velocity_process_variance);
     const float orientation_velocity_noise_1 = sampler.normal_sample(params_.orientation_velocity_process_variance);
