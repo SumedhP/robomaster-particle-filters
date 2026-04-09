@@ -67,6 +67,9 @@ void init(py::module_& m) noexcept {
           "update_state_with_observation",
           &particle_filter::update_state_with_observation,
           py::call_guard<py::gil_scoped_release>());
+
+    py::module_ sys = py::module_::import("sys");
+    sys.attr("modules")["robomaster_particle_filters.fast_plate_orbit_with_z_offset"] = fast_plate_orbit_with_z_offset;
 }
 
 }  // namespace fast_plate_orbit_with_z_offset
