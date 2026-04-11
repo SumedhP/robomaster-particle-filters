@@ -1,3 +1,5 @@
+import os
+
 from skbuild import setup
 
 __version__ = "1.0.7"
@@ -19,6 +21,19 @@ base_setup_options = {
 additional_native_setup_options = {
     "cmake_install_dir": 'src/robomaster_particle_filters',
 }
+
+header_only = os.getenv("ROBOMASTER_PF_HEADER_ONLY", "0").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+
+cmake_args = [
+    f"-DROBOMASTER_PF_HEADER_ONLY={'ON' if header_only else 'OFF'}",
+]
+
+additional_native_setup_options["cmake_args"] = cmake_args
 
 setup(
     **base_setup_options,
