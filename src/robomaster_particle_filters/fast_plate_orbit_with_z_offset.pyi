@@ -4,10 +4,14 @@ import numpy.typing as npt
 
 class ObservedPlate:
     def __init__(self, position: npt.NDArray[np.float32],
-                 position_diagonal_covariance: npt.NDArray[np.float32]): ...
+                 position_diagonal_covariance: npt.NDArray[np.float32],
+                 yaw: float,
+                 yaw_variance: float): ...
 
     def position(self) -> npt.NDArray[np.float32]: ...
     def position_diagonal_covariance(self) -> npt.NDArray[np.float32]: ...
+    def yaw(self) -> float: ...
+    def yaw_variance(self) -> float: ...
 
 class PredictedPlate:
     def __init__(
@@ -42,6 +46,7 @@ class ParticleFilterConfigurationParameters:
         self,
         radius_prior: float,
         visibility_logit_coefficient: float,
+        yaw_observation_variance: float,
         radius_prior_variance_one_plate: float,
         radius_prior_variance_two_plates: float,
         radius_process_variance: float,

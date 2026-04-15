@@ -67,6 +67,7 @@ def build_default_config() -> fpoz.ParticleFilterConfigurationParameters:
     return fpoz.ParticleFilterConfigurationParameters(
         0.11,
         2.0,
+        0.02,
         0.001,
         0.005,
         0.0001,
@@ -81,12 +82,17 @@ def build_default_config() -> fpoz.ParticleFilterConfigurationParameters:
 
 def build_default_observation() -> fpoz.Observation:
     observer_position = np.array([0.0, 0.0, 0.0], dtype=np.float32)
+    center_position = np.array([0.0, 0.0, 0.0], dtype=np.float32)
     plate_one_position = np.array([0.12, 0.0, 0.0], dtype=np.float32)
     plate_two_position = np.array([0.0, 0.12, 0.0], dtype=np.float32)
     plate_position_diagonal_covariance = np.array([0.0001, 0.0001, 0.0001], dtype=np.float32)
+    yaw_variance = 0.01
 
-    plate_one = fpoz.ObservedPlate(plate_one_position, plate_position_diagonal_covariance)
-    plate_two = fpoz.ObservedPlate(plate_two_position, plate_position_diagonal_covariance)
+    plate_one_yaw = float(np.arctan2(plate_one_position[1] - center_position[1], plate_one_position[0] - center_position[0]))
+    plate_two_yaw = float(np.arctan2(plate_two_position[1] - center_position[1], plate_two_position[0] - center_position[0]))
+
+    plate_one = fpoz.ObservedPlate(plate_one_position, plate_position_diagonal_covariance, plate_one_yaw, yaw_variance)
+    plate_two = fpoz.ObservedPlate(plate_two_position, plate_position_diagonal_covariance, plate_two_yaw, yaw_variance)
     return fpoz.Observation.from_two_plates(observer_position, plate_one, plate_two)
 
 

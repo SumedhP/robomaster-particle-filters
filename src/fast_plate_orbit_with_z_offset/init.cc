@@ -19,9 +19,11 @@ void init(py::module_& m) noexcept {
   auto fast_plate_orbit_with_z_offset = m.def_submodule("fast_plate_orbit_with_z_offset");
 
   py::class_<observed_plate>(fast_plate_orbit_with_z_offset, "ObservedPlate")
-      .def(py::init<Eigen::Vector3f, Eigen::Vector3f>())
+      .def(py::init<Eigen::Vector3f, Eigen::Vector3f, float, float>())
       .def("position", &observed_plate::position)
-      .def("position_diagonal_covariance", &observed_plate::position_diagonal_covariance);
+      .def("position_diagonal_covariance", &observed_plate::position_diagonal_covariance)
+      .def("yaw", &observed_plate::yaw)
+      .def("yaw_variance", &observed_plate::yaw_variance);
 
   py::class_<predicted_plate>(fast_plate_orbit_with_z_offset, "PredictedPlate")
       .def(py::init<Eigen::Vector3f, Eigen::Vector3f>())
@@ -47,7 +49,7 @@ void init(py::module_& m) noexcept {
   py::class_<particle_filter_configuration_parameters>(
       fast_plate_orbit_with_z_offset,
       "ParticleFilterConfigurationParameters")
-      .def(py::init<float, float, float, float, float, float, float, float, float, Eigen::Vector2f, Eigen::Vector2f>());
+      .def(py::init<float, float, float, float, float, float, float, float, float, float, Eigen::Vector2f, Eigen::Vector2f>());
 
   py::class_<particle_filter>(fast_plate_orbit_with_z_offset, "ParticleFilter")
       .def(py::init<size_t, observation, particle_filter_configuration_parameters>())

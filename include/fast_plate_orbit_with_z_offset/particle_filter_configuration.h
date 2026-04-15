@@ -61,6 +61,20 @@ PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float scalar_log_density_3(
   return -0.5f * (ex * ex / vx + ey * ey / vy + ez * ez / vz);
 }
 
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float scalar_log_density_1(
+    const float error,
+    const float variance) noexcept {
+  return -0.5f * (error * error / variance);
+}
+
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float wrap_half_turn(const float& angle_radians) noexcept {
+  float value = fmodf(angle_radians + M_PI_2, M_PI);
+  if (value < 0.0f) {
+    value += M_PI;
+  }
+  return value - M_PI_2;
+}
+
 // ---------------------------------------------------------------------------
 // 4-element sorting network (Bose-Nelson optimal, 5 compare-swaps)
 //
@@ -304,7 +318,13 @@ class particle_filter_configuration {
       const float vx = obs.position_diagonal_covariance().x();
       const float vy = obs.position_diagonal_covariance().y();
       const float vz = obs.position_diagonal_covariance().z();
-      return helper::scalar_log_density_3(ex, ey, ez, vx, vy, vz);
+
+      const float predicted_yaw = atan2f(py[pred_idx] - cy, px[pred_idx] - cx);
+      const float yaw_error = helper::wrap_half_turn(obs.yaw() - predicted_yaw);
+      const float yaw_variance = thrust::max(1.0e-6f, obs.yaw_variance() + params_.yaw_observation_variance);
+
+      return helper::scalar_log_density_3(ex, ey, ez, vx, vy, vz) +
+             helper::scalar_log_density_1(yaw_error, yaw_variance);
     };
 
     // ---- Combine -----------------------------------------------------------
@@ -330,7 +350,8 @@ class particle_filter_configuration {
 
   PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction sample_from(util::default_rv_sampler& sampler, const observation& state)
       const noexcept {
-    const observed_plate_orbit_builder builder(params_.radius_prior, state.observer_position());
+    const observed_plate_orbit_builder
+      builder(params_.radius_prior, params_.yaw_observation_variance, state.observer_position());
 
     const observed_plate_orbit orbit = state.plate_two().has_value() ?
                                            builder.from_two_plates(state.plate_one(), *state.plate_two()) :
