@@ -18,3 +18,7 @@ Interactive scripts demonstrating the provided particle filters can be found und
 - Run `python setup.py bdist_wheel`, using the python version you intend to target.
 - Install the wheel with `python -m pip install dist/robomaster_particle_filters*.whl` using the same python version you used in the previous step.
 
+For a header build, run:
+```
+ROBOMASTER_PF_HEADER_ONLY=1 python3.10 -m pip wheel . -w dist
+```
