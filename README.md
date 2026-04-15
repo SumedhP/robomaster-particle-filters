@@ -20,5 +20,6 @@ Interactive scripts demonstrating the provided particle filters can be found und
 
 For a header build, run:
 ```
-ROBOMASTER_PF_HEADER_ONLY=1 python3.10 -m pip wheel . -w dist
+ROBOMASTER_PF_HEADER_ONLY=1 
+python3.10 -m pip wheel . -w dist
 ```
