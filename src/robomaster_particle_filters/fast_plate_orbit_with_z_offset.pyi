@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List
 import numpy as np
 import numpy.typing as npt
 
@@ -70,3 +70,5 @@ class ParticleFilter:
         self, time_offset_seconds: float, state: Observation) -> None: ...
 
     def reinitialize(self, observation: Observation) -> None: ...
+
+    def telemetry(self, state: Observation) -> Dict[str, Any]: ...
