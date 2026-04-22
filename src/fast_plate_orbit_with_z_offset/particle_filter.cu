@@ -22,6 +22,10 @@ void particle_filter::reinitialize(const observation& initial_observation) noexc
   p_impl_->reinitialize(initial_observation);
 }
 
+void particle_filter::reinitialize(const observation& initial_observation, const initialization_prior& prior) noexcept {
+  p_impl_->reinitialize(initial_observation, prior);
+}
+
 void particle_filter::update_state_sans_observation(const float& time_offset_seconds) noexcept {
   p_impl_->update_state_sans_observation(time_offset_seconds);
 }
@@ -37,5 +41,12 @@ particle_filter::particle_filter(
     const observation& initial_observation,
     const particle_filter_configuration_parameters& params) noexcept
     : p_impl_(new particle_filter::impl(number_of_particles, initial_observation, params)) {}
+
+particle_filter::particle_filter(
+    const std::size_t& number_of_particles,
+    const observation& initial_observation,
+    const particle_filter_configuration_parameters& params,
+    const initialization_prior& prior) noexcept
+    : p_impl_(new particle_filter::impl(number_of_particles, initial_observation, prior, params)) {}
 
 }  // namespace fast_plate_orbit_with_z_offset

@@ -49,13 +49,23 @@ void init(py::module_& m) noexcept {
       "ParticleFilterConfigurationParameters")
       .def(py::init<float, float, float, float, float, float, float, float, float, Eigen::Vector2f, Eigen::Vector2f>());
 
+  py::class_<particle_filter::initialization_prior>(fast_plate_orbit_with_z_offset, "InitializationPrior")
+      .def(py::init<Eigen::Vector3f, float, float, float, float, float, float>())
+      .def_static("from_observation", &particle_filter::initialization_prior::from_observation);
+
   py::class_<particle_filter>(fast_plate_orbit_with_z_offset, "ParticleFilter")
       .def(py::init<size_t, observation, particle_filter_configuration_parameters>())
+      .def(py::init<size_t, observation, particle_filter_configuration_parameters, particle_filter::initialization_prior>())
       .def("extrapolate_state", &particle_filter::extrapolate_state, py::call_guard<py::gil_scoped_release>())
 
       .def(
           "reinitialize",
-          &particle_filter::reinitialize,
+          py::overload_cast<const observation&>(&particle_filter::reinitialize),
+          py::call_guard<py::gil_scoped_release>())
+
+      .def(
+          "reinitialize",
+          py::overload_cast<const observation&, const particle_filter::initialization_prior&>(&particle_filter::reinitialize),
           py::call_guard<py::gil_scoped_release>())
 
       .def(

@@ -4,6 +4,7 @@
 #include <pf/filter/particle_reduction_state.h>
 #include <pf/util/device_array.h>
 #include <fast_plate_orbit_with_z_offset/observation.h>
+#include <fast_plate_orbit_with_z_offset/initialization_prior.h>
 #include <fast_plate_orbit_with_z_offset/observed_plate.h>
 #include <fast_plate_orbit_with_z_offset/observed_plate_orbit.h>
 #include <fast_plate_orbit_with_z_offset/observed_plate_orbit_builder.h>
@@ -213,6 +214,7 @@ class particle_filter_configuration {
   using observation_type = observation;
   using prediction_type  = prediction;
   using sampler_type     = util::default_rv_sampler;
+  using initialization_prior_type = initialization_prior;
 
   // The reduction type is now scalar_reduction_state rather than
   // particle_reduction_state<prediction>.  particle_filter.h calls
@@ -330,7 +332,24 @@ class particle_filter_configuration {
 
   PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction sample_from(util::default_rv_sampler& sampler, const observation& state)
       const noexcept {
-    const observed_plate_orbit_builder builder(params_.radius_prior, state.observer_position());
+    return sample_from(sampler, state, initialization_prior::from_observation(state));
+  }
+
+  PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction sample_from(
+      util::default_rv_sampler& sampler,
+      const observation& state,
+      const initialization_prior& prior) const noexcept {
+    const float observer_confidence = fminf(1.0f, fmaxf(0.0f, prior.observer_position_confidence));
+    const float z_confidence = fminf(1.0f, fmaxf(0.0f, prior.z_coordinate_confidence));
+
+    const Eigen::Vector3f blended_observer =
+        (1.0f - observer_confidence) * state.observer_position() + observer_confidence * prior.observer_position_estimate;
+
+    const float observer_variance = observer_confidence * fmaxf(0.0f, prior.observer_position_variance);
+    const Eigen::Vector3f observer_position_for_builder =
+        blended_observer + sampler.normal_sample(Eigen::Vector3f::Constant(observer_variance));
+
+    const observed_plate_orbit_builder builder(params_.radius_prior, observer_position_for_builder);
 
     const observed_plate_orbit orbit = state.plate_two().has_value() ?
                                            builder.from_two_plates(state.plate_one(), *state.plate_two()) :
@@ -346,8 +365,13 @@ class particle_filter_configuration {
     const Eigen::Vector3f center    = orbit.center + sampler.normal_sample(state.plate_one().position_diagonal_covariance());
     const Eigen::Vector2f center_xy = center.head<2>();
 
-    const float z_coordinate_0 = center.tail<1>().value();
-    const float z_coordinate_1 = center.tail<1>().value();
+    const float center_z = center.z();
+    const float blended_z_coordinate_0 = (1.0f - z_confidence) * center_z + z_confidence * prior.z_coordinate_0_estimate;
+    const float blended_z_coordinate_1 = (1.0f - z_confidence) * center_z + z_confidence * prior.z_coordinate_1_estimate;
+
+    const float z_coordinate_variance = z_confidence * fmaxf(0.0f, prior.z_coordinate_variance);
+    const float z_coordinate_0 = blended_z_coordinate_0 + sampler.normal_sample(z_coordinate_variance);
+    const float z_coordinate_1 = blended_z_coordinate_1 + sampler.normal_sample(z_coordinate_variance);
 
     const Eigen::Vector2f center_xy_velocity = sampler.normal_sample(params_.center_velocity_prior_diagonal_covariance);
 

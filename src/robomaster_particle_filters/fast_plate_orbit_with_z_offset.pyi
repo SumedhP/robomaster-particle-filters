@@ -52,9 +52,27 @@ class ParticleFilterConfigurationParameters:
         center_velocity_prior_diagonal_covariance: npt.NDArray[np.float32],
         center_velocity_process_diagonal_covariance: npt.NDArray[np.float32]): ...
 
+class InitializationPrior:
+    def __init__(
+        self,
+        observer_position_estimate: npt.NDArray[np.float32],
+        observer_position_confidence: float,
+        observer_position_variance: float,
+        z_coordinate_0_estimate: float,
+        z_coordinate_1_estimate: float,
+        z_coordinate_confidence: float,
+        z_coordinate_variance: float): ...
+
+    @staticmethod
+    def from_observation(observation: Observation) -> InitializationPrior: ...
+
 class ParticleFilter:
     def __init__(self, number_of_samples: int, initial_observation: Observation,
                  params: ParticleFilterConfigurationParameters): ...
+
+    def __init__(self, number_of_samples: int, initial_observation: Observation,
+                 params: ParticleFilterConfigurationParameters,
+                 prior: InitializationPrior): ...
 
     def extrapolate_state(
         self, time_offset_seconds: float) -> Prediction: ...
@@ -65,3 +83,5 @@ class ParticleFilter:
         self, time_offset_seconds: float, state: Observation) -> None: ...
 
     def reinitialize(self, observation: Observation) -> None: ...
+
+    def reinitialize(self, observation: Observation, prior: InitializationPrior) -> None: ...
