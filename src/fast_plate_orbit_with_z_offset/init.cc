@@ -106,7 +106,7 @@ void init(py::module_& m) noexcept {
   py::class_<particle_filter_configuration_parameters>(
       fast_plate_orbit_with_z_offset,
       "ParticleFilterConfigurationParameters")
-      .def(py::init<float, float, float, float, float, float, float, float, float, float, Eigen::Vector2f, Eigen::Vector2f>());
+      .def(py::init<float, float, float, float, float, float, float, float, float, float, float, Eigen::Vector2f, Eigen::Vector2f>());
 
   py::class_<particle_filter>(fast_plate_orbit_with_z_offset, "ParticleFilter")
       .def(py::init<size_t, observation, particle_filter_configuration_parameters>())

@@ -320,11 +320,19 @@ class particle_filter_configuration {
       const float vz = obs.position_diagonal_covariance().z();
 
       const float predicted_yaw = atan2f(py[pred_idx] - cy, px[pred_idx] - cx);
+      const float view_ray_yaw = atan2f(py[pred_idx] - oy, px[pred_idx] - ox);
+      const float mirrored_predicted_yaw = 2.0f * view_ray_yaw - predicted_yaw;
+
       const float yaw_error = helper::wrap_half_turn(obs.yaw() - predicted_yaw);
+      const float mirrored_yaw_error = helper::wrap_half_turn(obs.yaw() - mirrored_predicted_yaw);
       const float yaw_variance = thrust::max(1.0e-6f, obs.yaw_variance() + params_.yaw_observation_variance);
 
-      return helper::scalar_log_density_3(ex, ey, ez, vx, vy, vz) +
-             helper::scalar_log_density_1(yaw_error, yaw_variance);
+      float log_yaw_density = helper::scalar_log_density_1(yaw_error, yaw_variance);
+      float log_mirrored_yaw_density = helper::scalar_log_density_1(mirrored_yaw_error, yaw_variance) - params_.mirrored_yaw_log_penalty;
+      
+      const float final_yaw_density = helper::log_sum_exp(log_yaw_density, log_mirrored_yaw_density);
+
+      return helper::scalar_log_density_3(ex, ey, ez, vx, vy, vz) + final_yaw_density;
     };
 
     // ---- Combine -----------------------------------------------------------

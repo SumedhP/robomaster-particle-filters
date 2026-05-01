@@ -10,6 +10,8 @@ endif ()
 include (GNUInstallDirs)
 
 set (CMAKE_CXX_STANDARD 20)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_EXTENSIONS OFF)
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Ofast -ffast-math -Wpedantic -Wall -Wextra -flto -fopenmp -lgomp")
 
 if (ROBOMASTER_PF_HEADER_ONLY)
