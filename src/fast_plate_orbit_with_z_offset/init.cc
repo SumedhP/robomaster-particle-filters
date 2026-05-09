@@ -53,6 +53,11 @@ void init(py::module_& m) noexcept {
       .def("extrapolate_state", &particle_filter::extrapolate_state, py::call_guard<py::gil_scoped_release>())
 
       .def(
+          "reinitialize",
+          &particle_filter::reinitialize,
+          py::call_guard<py::gil_scoped_release>()) 
+
+      .def(
           "update_state_sans_observation",
           &particle_filter::update_state_sans_observation,
           py::call_guard<py::gil_scoped_release>())
@@ -61,6 +66,9 @@ void init(py::module_& m) noexcept {
           "update_state_with_observation",
           &particle_filter::update_state_with_observation,
           py::call_guard<py::gil_scoped_release>());
+
+    py::module_ sys = py::module_::import("sys");
+    sys.attr("modules")["robomaster_particle_filters.fast_plate_orbit_with_z_offset"] = fast_plate_orbit_with_z_offset;
 }
 
 }  // namespace fast_plate_orbit_with_z_offset
