@@ -7,6 +7,7 @@ namespace fast_plate_orbit_with_z_offset {
 struct particle_filter_configuration_parameters {
   float radius_prior;
   float visibility_logit_coefficient;
+  float mirrored_yaw_log_penalty;
 
   float radius_prior_variance_one_plate;
   float radius_prior_variance_two_plates;

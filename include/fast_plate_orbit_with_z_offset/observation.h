@@ -19,12 +19,21 @@ class observation {
   PF_TARGET_ATTRS [[nodiscard]] const observed_plate& plate_one() const noexcept { return plate_one_; }
   PF_TARGET_ATTRS [[nodiscard]] const cuda::std::optional<observed_plate>& plate_two() const noexcept { return plate_two_; }
 
-  PF_TARGET_ATTRS observation(const Eigen::Vector3f& observer_position, const observed_plate& plate_one) noexcept
-      : observer_position_{observer_position}, plate_one_{plate_one}, plate_two_{cuda::std::nullopt} {}
+  PF_TARGET_ATTRS observation(
+      const Eigen::Vector3f& observer_position,
+      const observed_plate& plate_one) noexcept
+      : observer_position_{observer_position},
+        plate_one_{plate_one},
+        plate_two_{cuda::std::nullopt} {}
 
   PF_TARGET_ATTRS
-  observation(const Eigen::Vector3f& observer_position, const observed_plate& plate_one, const observed_plate& plate_two) noexcept
-      : observer_position_{observer_position}, plate_one_{plate_one}, plate_two_{plate_two} {}
+  observation(
+      const Eigen::Vector3f& observer_position,
+      const observed_plate& plate_one,
+      const observed_plate& plate_two) noexcept
+      : observer_position_{observer_position},
+        plate_one_{plate_one},
+        plate_two_{plate_two} {}
 
   PF_TARGET_ATTRS static observation from_one_plate(
       const Eigen::Vector3f& observer_position,

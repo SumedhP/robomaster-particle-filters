@@ -23,6 +23,19 @@ namespace helper {
 
 PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sigmoid(const float& x) noexcept { return -logf(1.0f + expf(-x)); }
 
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float wrap_half_turn(const float& angle_radians) noexcept {
+  float value = fmodf(angle_radians + M_PI_2, M_PI);
+  if (value < 0.0f) {
+    value += M_PI;
+  }
+  return value - M_PI_2;
+}
+
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sum_exp(const float a, const float b) noexcept {
+  const float m = fmaxf(a, b);
+  return m + log1pf(expf(-fabsf(a - b)));
+}
+
 }  // namespace helper
 
 struct most_likely_particle_reduction_impl {
@@ -136,9 +149,29 @@ class particle_filter_configuration {
           return params_.visibility_logit_coefficient * similarity;
         });
 
-    auto log_p_of = [&sampler](const observed_plate& x, const predicted_plate& y) {
-      const auto error = (x.position() - y.position()).eval();
-      return sampler.unnormalized_normal_log_density(x.position_diagonal_covariance(), error);
+    auto log_p_of = [&sampler, this, state, given](const observed_plate& x, const predicted_plate& y) {
+      const auto pos_error = (x.position() - y.position()).eval();
+      const float pos_log_density = sampler.unnormalized_normal_log_density(x.position_diagonal_covariance(), pos_error);
+      
+      const float cx = given.center().x();
+      const float cy = given.center().y();
+      const float ox = state.observer_position().x();
+      const float oy = state.observer_position().y();
+      
+      const float predicted_yaw = atan2f(y.position().y() - cy, y.position().x() - cx);
+      const float view_ray_yaw = atan2f(y.position().y() - oy, y.position().x() - ox);
+      const float mirrored_predicted_yaw = 2.0f * view_ray_yaw - predicted_yaw;
+      
+      const float yaw_error = helper::wrap_half_turn(x.yaw() - predicted_yaw);
+      const float mirrored_yaw_error = helper::wrap_half_turn(x.yaw() - mirrored_predicted_yaw);
+      const float yaw_variance = thrust::max(1.0e-6f, x.yaw_variance());
+      
+      const float log_yaw_density = sampler.unnormalized_normal_log_density(yaw_variance, yaw_error);
+      const float log_mirrored_yaw_density = sampler.unnormalized_normal_log_density(yaw_variance, mirrored_yaw_error) - params_.mirrored_yaw_log_penalty;
+      
+      const float final_yaw_density = helper::log_sum_exp(log_yaw_density, log_mirrored_yaw_density);
+      
+      return pos_log_density + final_yaw_density;
     };
 
     if (!state.plate_two().has_value()) {
