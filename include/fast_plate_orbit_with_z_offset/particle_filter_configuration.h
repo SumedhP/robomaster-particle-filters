@@ -24,6 +24,19 @@ namespace helper {
 
 PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sigmoid(const float& x) noexcept { return -logf(1.0f + expf(-x)); }
 
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float wrap_half_turn(const float& angle_radians) noexcept {
+  float value = fmodf(angle_radians + M_PI_2, M_PI);
+  if (value < 0.0f) {
+    value += M_PI;
+  }
+  return value - M_PI_2;
+}
+
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sum_exp(const float a, const float b) noexcept {
+  const float m = fmaxf(a, b);
+  return m + log1pf(expf(-fabsf(a - b)));
+}
+
 // ---------------------------------------------------------------------------
 // Scalar plate-position helper
 //
@@ -32,7 +45,7 @@ PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sigmoid(const float& x) noex
 // and the scalar log-density path so that no Eigen temporaries are allocated
 // on the device.
 // ---------------------------------------------------------------------------
-PF_TARGET_ONLY_ATTRS [[nodiscard]] inline void plate_position_scalars(
+PF_TARGET_ONLY_ATTRS inline void plate_position_scalars(
     const float cx, const float cy,
     const float radius, const float angle,
     const float z_coordinate,
@@ -298,13 +311,55 @@ class particle_filter_configuration {
     // We extract x/y/z components and compute the Gaussian score as three
     // scalar divisions — no Eigen allocation, no virtual dispatch.
     auto log_p_of = [&](const observed_plate& obs, const uint8_t pred_idx) -> float {
+
+      // ---- Position likelihood ----------------------------------------------
       const float ex = obs.position().x() - px[pred_idx];
       const float ey = obs.position().y() - py[pred_idx];
       const float ez = obs.position().z() - pz[pred_idx];
+
       const float vx = obs.position_diagonal_covariance().x();
       const float vy = obs.position_diagonal_covariance().y();
       const float vz = obs.position_diagonal_covariance().z();
-      return helper::scalar_log_density_3(ex, ey, ez, vx, vy, vz);
+
+      const float pos_log_density =
+          helper::scalar_log_density_3(ex, ey, ez, vx, vy, vz);
+
+      // ---- Yaw likelihood ----------------------------------------------------
+      const float predicted_yaw =
+          atan2f(py[pred_idx] - cy, px[pred_idx] - cx);
+
+      const float view_ray_yaw =
+          atan2f(py[pred_idx] - oy, px[pred_idx] - ox);
+
+      const float mirrored_predicted_yaw =
+          2.0f * view_ray_yaw - predicted_yaw;
+
+      const float yaw_error =
+          helper::wrap_half_turn(obs.yaw() - predicted_yaw);
+
+      const float mirrored_yaw_error =
+          helper::wrap_half_turn(obs.yaw() - mirrored_predicted_yaw);
+
+      const float yaw_variance =
+          thrust::max(1.0e-6f, obs.yaw_variance());
+
+      const float log_yaw_density =
+          sampler.unnormalized_normal_log_density(
+              yaw_variance,
+              yaw_error);
+
+      const float log_mirrored_yaw_density =
+          sampler.unnormalized_normal_log_density(
+              yaw_variance,
+              mirrored_yaw_error)
+          - params_.mirrored_yaw_penalty;
+
+      const float final_yaw_density =
+          helper::log_sum_exp(
+              log_yaw_density,
+              log_mirrored_yaw_density);
+
+      return pos_log_density + final_yaw_density;
     };
 
     // ---- Combine -----------------------------------------------------------
