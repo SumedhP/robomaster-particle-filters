@@ -24,6 +24,11 @@ namespace helper {
 
 PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sigmoid(const float& x) noexcept { return -logf(1.0f + expf(-x)); }
 
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sum_exp(const float a, const float b) noexcept {
+  const float m = fmaxf(a, b);
+  return m + log1pf(expf(-fabsf(a - b)));
+}
+
 // ---------------------------------------------------------------------------
 // Scalar plate-position helper
 //
@@ -32,7 +37,7 @@ PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sigmoid(const float& x) noex
 // and the scalar log-density path so that no Eigen temporaries are allocated
 // on the device.
 // ---------------------------------------------------------------------------
-PF_TARGET_ONLY_ATTRS [[nodiscard]] inline void plate_position_scalars(
+PF_TARGET_ONLY_ATTRS inline void plate_position_scalars(
     const float cx, const float cy,
     const float radius, const float angle,
     const float z_coordinate,
