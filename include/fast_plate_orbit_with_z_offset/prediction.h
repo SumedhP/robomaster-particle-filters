@@ -18,8 +18,9 @@ PF_TARGET_ATTRS [[nodiscard]] inline Eigen::Vector3f rpad_zero(const Eigen::Vect
 }
 
 PF_TARGET_ATTRS [[nodiscard]] inline float to_orientation(const float& angle_radians) noexcept {
-  const float value = fmod(angle_radians, M_PI);
-  return (value < 0.0f) ? value + M_PI : value;
+  const float two_pi = 2.0f * M_PI;
+  const float value = fmod(angle_radians, two_pi);
+  return (value < 0.0f) ? value + two_pi : value;
 }
 
 PF_TARGET_ATTRS [[nodiscard]] inline float to_radius(const float& radius) noexcept {
