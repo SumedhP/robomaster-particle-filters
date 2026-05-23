@@ -67,6 +67,7 @@ def build_default_config() -> fpoz.ParticleFilterConfigurationParameters:
     return fpoz.ParticleFilterConfigurationParameters(
         0.11,
         2.0,
+        1.0,  # mirrored_yaw_penalty
         0.001,
         0.005,
         0.0001,
@@ -85,8 +86,8 @@ def build_default_observation() -> fpoz.Observation:
     plate_two_position = np.array([0.0, 0.12, 0.0], dtype=np.float32)
     plate_position_diagonal_covariance = np.array([0.0001, 0.0001, 0.0001], dtype=np.float32)
 
-    plate_one = fpoz.ObservedPlate(plate_one_position, plate_position_diagonal_covariance)
-    plate_two = fpoz.ObservedPlate(plate_two_position, plate_position_diagonal_covariance)
+    plate_one = fpoz.ObservedPlate(plate_one_position, plate_position_diagonal_covariance, 0.0, 0.01)
+    plate_two = fpoz.ObservedPlate(plate_two_position, plate_position_diagonal_covariance, 0.0, 0.01)
     return fpoz.Observation.from_two_plates(observer_position, plate_one, plate_two)
 
 
@@ -218,8 +219,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
         )
     )
     parser.add_argument("--particle-count", type=int, default=(1 << 20), help="Number of particles to use.")
-    parser.add_argument("--runs", type=int, default=100, help="Timed runs per method.")
-    parser.add_argument("--warmup", type=int, default=10, help="Warmup iterations per method.")
+    parser.add_argument("--runs", type=int, default=1, help="Timed runs per method.")
+    parser.add_argument("--warmup", type=int, default=0, help="Warmup iterations per method.")
     parser.add_argument("--dt-seconds", type=float, default=0.016, help="Delta time passed to each method call.")
     parser.add_argument(
         "--json-output",

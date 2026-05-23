@@ -25,11 +25,13 @@ namespace helper {
 PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sigmoid(const float& x) noexcept { return -logf(1.0f + expf(-x)); }
 
 PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float wrap_half_turn(const float& angle_radians) noexcept {
-  float value = fmodf(angle_radians + M_PI_2, M_PI);
+  const float pi = static_cast<float>(M_PI);
+  const float pi_2 = static_cast<float>(M_PI_2);
+  float value = fmodf(angle_radians + pi_2, pi);
   if (value < 0.0f) {
-    value += M_PI;
+    value += pi;
   }
-  return value - M_PI_2;
+  return value - pi_2;
 }
 
 PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sum_exp(const float a, const float b) noexcept {
