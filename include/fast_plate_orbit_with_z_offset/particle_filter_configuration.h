@@ -403,8 +403,11 @@ class particle_filter_configuration {
     const Eigen::Vector3f center    = orbit.center + sampler.normal_sample(state.plate_one().position_diagonal_covariance());
     const Eigen::Vector2f center_xy = center.head<2>();
 
-    const float z_coordinate_0 = center.tail<1>().value();
-    const float z_coordinate_1 = center.tail<1>().value();
+    const bool has_two_plates = state.plate_two().has_value();
+    const float z_coordinate_0 = has_two_plates ? orbit.z_coordinate_0
+                          : orbit.z_coordinate_0 + sampler.normal_sample(params_.z_height_prior_variance);
+    const float z_coordinate_1 = has_two_plates ? orbit.z_coordinate_1
+                          : orbit.z_coordinate_1 + sampler.normal_sample(params_.z_height_prior_variance);
 
     const Eigen::Vector2f center_xy_velocity = sampler.normal_sample(params_.center_velocity_prior_diagonal_covariance);
 

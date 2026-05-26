@@ -29,7 +29,7 @@ class observed_plate_orbit_builder {
 
     const float predicted_orientation = atan2(center_relative_position[1], center_relative_position[0]);
 
-    return observed_plate_orbit{radius_prior_, predicted_orientation, predicted_center};
+    return observed_plate_orbit{radius_prior_, plate_one.position().z(), plate_one.position().z(), predicted_orientation, predicted_center};
   }
 
   PF_TARGET_ATTRS observed_plate_orbit
@@ -48,7 +48,12 @@ class observed_plate_orbit_builder {
 
     const float predicted_orientation = atan2(center_relative_position[1], center_relative_position[0]);
 
-    return observed_plate_orbit{predicted_radius, predicted_orientation, predicted_center};
+    return observed_plate_orbit{
+        predicted_radius,
+        plate_one.position().z(),
+        plate_two.position().z(),
+        predicted_orientation,
+        predicted_center};
   }
 
   PF_TARGET_ATTRS observed_plate_orbit_builder(const float& radius_prior, const Eigen::Vector3f& observer_position) noexcept

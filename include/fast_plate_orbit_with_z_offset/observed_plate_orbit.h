@@ -6,6 +6,8 @@ namespace fast_plate_orbit_with_z_offset {
 
 struct observed_plate_orbit {
   float radius;
+  float z_coordinate_0;
+  float z_coordinate_1;
   float orientation;
   Eigen::Vector3f center;
 };
