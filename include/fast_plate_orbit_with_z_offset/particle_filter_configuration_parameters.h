@@ -16,6 +16,7 @@ struct particle_filter_configuration_parameters {
 
   float z_coordinate_common_process_variance;
   float z_coordinate_offset_process_variance;
+  float z_height_prior_variance;
 
   float orientation_velocity_prior_variance;
   float orientation_velocity_process_variance;

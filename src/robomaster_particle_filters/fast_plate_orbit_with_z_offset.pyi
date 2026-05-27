@@ -48,6 +48,7 @@ class ParticleFilterConfigurationParameters:
         radius_process_variance: float,
         z_coordinate_common_process_variance: float,
         z_coordinate_offset_process_variance: float,
+        z_height_prior_variance: float,
         orientation_velocity_prior_variance: float,
         orientation_velocity_process_variance: float,
         center_velocity_prior_diagonal_covariance: npt.NDArray[np.float32],
