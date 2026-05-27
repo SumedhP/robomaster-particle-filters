@@ -65,7 +65,7 @@ def synchronize_cuda() -> None:
 
 def build_default_config() -> fpoz.ParticleFilterConfigurationParameters:
     return fpoz.ParticleFilterConfigurationParameters(
-        0.11,
+        fpoz.InitializationPrior(0.11),
         2.0,
         1.0,  # mirrored_yaw_penalty
         0.001,

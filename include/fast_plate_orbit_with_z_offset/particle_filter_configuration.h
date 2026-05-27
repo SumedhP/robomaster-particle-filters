@@ -7,6 +7,7 @@
 #include <fast_plate_orbit_with_z_offset/observed_plate.h>
 #include <fast_plate_orbit_with_z_offset/observed_plate_orbit.h>
 #include <fast_plate_orbit_with_z_offset/observed_plate_orbit_builder.h>
+#include <fast_plate_orbit_with_z_offset/initialization_prior.h>
 #include <fast_plate_orbit_with_z_offset/particle_filter_configuration_parameters.h>
 #include <fast_plate_orbit_with_z_offset/predicted_plate.h>
 #include <fast_plate_orbit_with_z_offset/prediction.h>
@@ -17,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 
 namespace fast_plate_orbit_with_z_offset {
 
@@ -228,6 +230,7 @@ class particle_filter_configuration {
   using observation_type = observation;
   using prediction_type  = prediction;
   using sampler_type     = util::default_rv_sampler;
+  using initialization_prior_type = initialization_prior;
 
   // The reduction type is now scalar_reduction_state rather than
   // particle_reduction_state<prediction>.  particle_filter.h calls
@@ -385,9 +388,14 @@ class particle_filter_configuration {
     return log_pr_visibility + fmaxf(assignment_one, assignment_two);
   }
 
-  PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction sample_from(util::default_rv_sampler& sampler, const observation& state)
-      const noexcept {
-    const observed_plate_orbit_builder builder(params_.radius_prior, state.observer_position());
+  PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction sample_from(
+      util::default_rv_sampler& sampler,
+      const observation& state,
+      const std::optional<initialization_prior_type>& initialization_prior) const noexcept {
+    const float robot_radius = initialization_prior.has_value() ?
+                                   initialization_prior->robot_radius :
+                                   params_.initialization_prior.robot_radius;
+    const observed_plate_orbit_builder builder(robot_radius, state.observer_position());
 
     const observed_plate_orbit orbit = state.plate_two().has_value() ?
                                            builder.from_two_plates(state.plate_one(), *state.plate_two()) :
@@ -412,6 +420,12 @@ class particle_filter_configuration {
     const Eigen::Vector2f center_xy_velocity = sampler.normal_sample(params_.center_velocity_prior_diagonal_covariance);
 
     return prediction(radius, z_coordinate_0, z_coordinate_1, orientation, orientation_velocity, center_xy, center_xy_velocity);
+  }
+
+  PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction sample_from(
+      util::default_rv_sampler& sampler,
+      const observation& state) const noexcept {
+    return sample_from(sampler, state, std::nullopt);
   }
 
   PF_TARGET_ONLY_ATTRS void apply_process(const float& time_offset_seconds, util::default_rv_sampler& sampler, prediction& state)

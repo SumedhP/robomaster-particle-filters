@@ -37,10 +37,14 @@ class Prediction:
     def extrapolate_state(
         self, time_offset_seconds: float) -> Prediction: ...
 
+class InitializationPrior:
+    def __init__(self, robot_radius: float): ...
+    robot_radius: float
+
 class ParticleFilterConfigurationParameters:
     def __init__(
         self,
-        radius_prior: float,
+        initialization_prior: InitializationPrior,
         visibility_logit_coefficient: float,
         mirrored_yaw_penalty: float,
         radius_prior_variance_one_plate: float,
@@ -66,4 +70,7 @@ class ParticleFilter:
     def update_state_with_observation(
         self, time_offset_seconds: float, state: Observation) -> None: ...
 
-    def reinitialize(self, observation: Observation) -> None: ...
+    def reinitialize(
+        self,
+        observation: Observation,
+        initialization_prior: InitializationPrior | None = None) -> None: ...

@@ -3,6 +3,7 @@
 #include <fast_plate_orbit_with_z_offset/observed_plate.h>
 #include <fast_plate_orbit_with_z_offset/particle_filter.h>
 #include <fast_plate_orbit_with_z_offset/particle_filter_configuration_parameters.h>
+#include <fast_plate_orbit_with_z_offset/initialization_prior.h>
 #include <fast_plate_orbit_with_z_offset/predicted_plate.h>
 #include <fast_plate_orbit_with_z_offset/prediction.h>
 
@@ -46,10 +47,14 @@ void init(py::module_& m) noexcept {
       .def("center_velocity", &prediction::center_velocity)
       .def("extrapolate_state", &prediction::extrapolate_state);
 
+  py::class_<initialization_prior>(fast_plate_orbit_with_z_offset, "InitializationPrior")
+      .def(py::init<float>())
+      .def_readwrite("robot_radius", &initialization_prior::robot_radius);
+
   py::class_<particle_filter_configuration_parameters>(
       fast_plate_orbit_with_z_offset,
       "ParticleFilterConfigurationParameters")
-      .def(py::init<float, float, float, float, float, float, float, float, float, float, float, Eigen::Vector2f, Eigen::Vector2f>());
+      .def(py::init<initialization_prior, float, float, float, float, float, float, float, float, float, float, Eigen::Vector2f, Eigen::Vector2f>());
 
   py::class_<particle_filter>(fast_plate_orbit_with_z_offset, "ParticleFilter")
       .def(py::init<size_t, observation, particle_filter_configuration_parameters>())
@@ -57,7 +62,13 @@ void init(py::module_& m) noexcept {
 
       .def(
           "reinitialize",
-          &particle_filter::reinitialize,
+          static_cast<void (particle_filter::*)(const observation&) noexcept>(&particle_filter::reinitialize),
+          py::call_guard<py::gil_scoped_release>())
+
+      .def(
+          "reinitialize",
+          static_cast<void (particle_filter::*)(const observation&, const initialization_prior&) noexcept>(
+              &particle_filter::reinitialize),
           py::call_guard<py::gil_scoped_release>())
 
       .def(

@@ -16,6 +16,7 @@
 #include <Eigen/Dense>
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 namespace fast_plate_orbit {
 
@@ -69,6 +70,9 @@ class particle_filter_configuration {
   using observation_type = observation;
   using prediction_type = prediction;
   using sampler_type = util::default_rv_sampler;
+  struct initialization_prior_type {
+    float robot_radius;
+  };
 
   [[nodiscard]] most_likely_particle_reduction_impl most_likely_particle_reduction() const noexcept {
     return most_likely_particle_reduction_impl{};
@@ -111,9 +115,12 @@ class particle_filter_configuration {
     return log_pr_visibility + std::max(assignment_one, assignment_two);
   }
 
-  PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction sample_from(util::default_rv_sampler& sampler, const observation& state)
-      const noexcept {
-    const observed_plate_orbit_builder builder(params_.radius_prior, state.observer_position());
+  PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction sample_from(
+      util::default_rv_sampler& sampler,
+      const observation& state,
+      const std::optional<initialization_prior_type>& initialization_prior) const noexcept {
+    const float robot_radius = initialization_prior.has_value() ? initialization_prior->robot_radius : params_.radius_prior;
+    const observed_plate_orbit_builder builder(robot_radius, state.observer_position());
 
     const observed_plate_orbit orbit = state.plate_two().has_value() ?
                                            builder.from_two_plates(state.plate_one(), *state.plate_two()) :
@@ -131,6 +138,12 @@ class particle_filter_configuration {
     const Eigen::Vector2f center_velocity = sampler.normal_sample(params_.center_xy_velocity_prior_diagonal_covariance);
 
     return prediction(radius, orientation, orientation_velocity, center, center_velocity);
+  }
+
+  PF_TARGET_ONLY_ATTRS [[nodiscard]] prediction sample_from(
+      util::default_rv_sampler& sampler,
+      const observation& state) const noexcept {
+    return sample_from(sampler, state, std::nullopt);
   }
 
   PF_TARGET_ONLY_ATTRS void apply_process(const float& time_offset_seconds, util::default_rv_sampler& sampler, prediction& state)

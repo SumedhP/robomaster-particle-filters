@@ -1,11 +1,13 @@
 #pragma once
 
+#include <fast_plate_orbit_with_z_offset/initialization_prior.h>
+
 #include <Eigen/Dense>
 
 namespace fast_plate_orbit_with_z_offset {
 
 struct particle_filter_configuration_parameters {
-  float radius_prior;
+  initialization_prior initialization_prior;
   float visibility_logit_coefficient;
 
   float mirrored_yaw_penalty;

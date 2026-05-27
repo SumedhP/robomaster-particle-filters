@@ -1,4 +1,5 @@
 #pragma once
+#include <fast_plate_orbit_with_z_offset/initialization_prior.h>
 #include <fast_plate_orbit_with_z_offset/observation.h>
 #include <fast_plate_orbit_with_z_offset/particle_filter_configuration_parameters.h>
 #include <fast_plate_orbit_with_z_offset/prediction.h>
@@ -21,6 +22,7 @@ class particle_filter {
   [[nodiscard]] prediction extrapolate_state(const float& time_offset_seconds) const noexcept;
 
   void reinitialize(const observation& initial_observation) noexcept;
+  void reinitialize(const observation& initial_observation, const initialization_prior& initialization_prior) noexcept;
   void update_state_sans_observation(const float& time_offset_seconds) noexcept;
   void update_state_with_observation(const float& time_offset_seconds, const observation& observation_state) noexcept;
 

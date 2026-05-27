@@ -22,6 +22,12 @@ void particle_filter::reinitialize(const observation& initial_observation) noexc
   p_impl_->reinitialize(initial_observation);
 }
 
+void particle_filter::reinitialize(
+    const observation& initial_observation,
+    const initialization_prior& initialization_prior) noexcept {
+  p_impl_->reinitialize(initial_observation, initialization_prior);
+}
+
 void particle_filter::update_state_sans_observation(const float& time_offset_seconds) noexcept {
   p_impl_->update_state_sans_observation(time_offset_seconds);
 }
