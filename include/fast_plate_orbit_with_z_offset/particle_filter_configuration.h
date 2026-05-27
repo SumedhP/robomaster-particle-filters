@@ -394,7 +394,7 @@ class particle_filter_configuration {
       const std::optional<initialization_prior_type>& initialization_prior) const noexcept {
     const float robot_radius = initialization_prior.has_value() ?
                                    initialization_prior->robot_radius :
-                                   params_.initialization_prior.robot_radius;
+                                   params_.default_initialization_prior.robot_radius;
     const observed_plate_orbit_builder builder(robot_radius, state.observer_position());
 
     const observed_plate_orbit orbit = state.plate_two().has_value() ?
