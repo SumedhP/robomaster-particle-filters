@@ -5,6 +5,7 @@
 #include <pf/util/device_array.h>
 #include <plate_orbit_v2/observation.h>
 #include <plate_orbit_v2/predicted_plate.h>
+#include <thrust/extrema.h>
 
 #include <Eigen/Dense>
 #include <array>

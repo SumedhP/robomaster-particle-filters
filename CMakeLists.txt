@@ -38,6 +38,12 @@ target_include_directories (
   ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
 )
 
+foreach(path ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+  if(EXISTS "${path}/cccl")
+    target_include_directories(robomaster_particle_filters PRIVATE "${path}/cccl")
+  endif()
+endforeach()
+
 target_compile_definitions (robomaster_particle_filters PRIVATE $<$<COMPILE_LANGUAGE:CXX>: PF_TARGET_OMP>)
 target_compile_definitions (robomaster_particle_filters PRIVATE $<$<COMPILE_LANGUAGE:CXX>: THRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_CPP>)
 target_compile_definitions (robomaster_particle_filters PRIVATE $<$<COMPILE_LANGUAGE:CXX>: THRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_OMP>)

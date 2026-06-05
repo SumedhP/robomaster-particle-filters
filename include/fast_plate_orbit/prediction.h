@@ -5,6 +5,7 @@
 #include <fast_plate_orbit/prediction_soa.h>
 #include <pf/config/target_config.h>
 #include <pf/util/device_array.h>
+#include <thrust/extrema.h>
 
 #include <Eigen/Dense>
 #include <array>
