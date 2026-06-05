@@ -5,3 +5,6 @@
 
 # 1.3
 1.3.0 Adds in corrected Z-height logic
+
+# 1.4
+Allows for reintialization with a dynamic prior
