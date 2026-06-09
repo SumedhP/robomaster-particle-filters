@@ -1,6 +1,6 @@
 from skbuild import setup
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 
 base_setup_options = {
     "name": "robomaster_particle_filters",

@@ -26,14 +26,14 @@ namespace helper {
 
 PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sigmoid(const float& x) noexcept { return -logf(1.0f + expf(-x)); }
 
-PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float wrap_half_turn(const float& angle_radians) noexcept {
+PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float wrap_to_pi(const float& angle_radians) noexcept {
+  const float two_pi = 2.0f * static_cast<float>(M_PI);
   const float pi = static_cast<float>(M_PI);
-  const float pi_2 = static_cast<float>(M_PI_2);
-  float value = fmodf(angle_radians + pi_2, pi);
-  if (value < 0.0f) {
-    value += pi;
-  }
-  return value - pi_2;
+
+  float a = fmodf(angle_radians, two_pi);
+  if (a < 0.0f) a += two_pi;
+  if (a > pi) a -= two_pi;
+  return a;
 }
 
 PF_TARGET_ONLY_ATTRS [[nodiscard]] inline float log_sum_exp(const float a, const float b) noexcept {
@@ -170,45 +170,69 @@ struct scalar_reduction_state {
 struct most_likely_particle_reduction_impl {
   using state_type = scalar_reduction_state;
 
-  static constexpr float half_pi = M_PI_2;
-
   PF_TARGET_ATTRS [[nodiscard]] inline state_type
   operator()(const state_type& a, const state_type& b) const noexcept {
     if (a.count == 0) return b;
     if (b.count == 0) return a;
 
-    // --- Orientation symmetry resolution -----------------------------------
-    // The orbit has pi/2 symmetry.  The five candidates cover the full range
-    // of equivalent orientations.  When the z-coordinates swap (±pi/2, ±pi),
-    // the z_coordinate pair must be swapped to stay geometrically consistent.
-    // We select the candidate whose orientation is closest to b's, then carry
-    // the corresponding z-coordinates.
+    constexpr float two_pi = 2.0f * static_cast<float>(M_PI);
+    constexpr float half_pi = static_cast<float>(M_PI_2);
 
-    struct candidate { float orientation; float z0; float z1; };
-    const candidate candidates[5] = {
-        {a.orientation + 0.0f * half_pi, a.z_coordinate_0, a.z_coordinate_1},
-        {a.orientation + 1.0f * half_pi, a.z_coordinate_1, a.z_coordinate_0},
-        {a.orientation - 1.0f * half_pi, a.z_coordinate_1, a.z_coordinate_0},
-        {a.orientation + 2.0f * half_pi, a.z_coordinate_0, a.z_coordinate_1},
-        {a.orientation - 2.0f * half_pi, a.z_coordinate_0, a.z_coordinate_1},
+    // Normalize a and b orientations into [0, 2π)
+    float a_norm = fmodf(a.orientation, two_pi);
+    if (a_norm < 0.0f) a_norm += two_pi;
+    float b_norm = fmodf(b.orientation, two_pi);
+    if (b_norm < 0.0f) b_norm += two_pi;
+
+    // Candidate offsets (k * π/2) for k = -2, -1, 0, 1, 2
+    const float candidate_offsets[5] = {
+        0.0f * half_pi,   // 0
+        1.0f * half_pi,   // +π/2
+      -1.0f * half_pi,   // -π/2
+        2.0f * half_pi,   // +π
+      -2.0f * half_pi    // -π
     };
 
-    // Find closest candidate to b.orientation — pure scalar comparisons.
-    int best = 0;
-    float best_dist = fabsf(b.orientation - candidates[0].orientation);
-    for (int i = 1; i < 5; ++i) {
-      const float d = fabsf(b.orientation - candidates[i].orientation);
-      if (d < best_dist) { best_dist = d; best = i; }
+    // Find candidate with smallest circular distance to b_norm
+    int best_idx = 0;
+    float best_dist = two_pi;
+    for (int i = 0; i < 5; ++i) {
+      float cand = a_norm + candidate_offsets[i];
+      cand = fmodf(cand, two_pi);
+      if (cand < 0.0f) cand += two_pi;
+      float diff = fabsf(b_norm - cand);
+      float circ_dist = fminf(diff, two_pi - diff);
+      if (circ_dist < best_dist) {
+        best_dist = circ_dist;
+        best_idx = i;
+      }
     }
 
+    // Best candidate angle and its associated z‑coordinates
+    float best_angle = a_norm + candidate_offsets[best_idx];
+    best_angle = fmodf(best_angle, two_pi);
+    if (best_angle < 0.0f) best_angle += two_pi;
+
+    const bool swap_z = (best_idx == 1 || best_idx == 2); // +π/2 or -π/2
+    float best_z0 = swap_z ? a.z_coordinate_1 : a.z_coordinate_0;
+    float best_z1 = swap_z ? a.z_coordinate_0 : a.z_coordinate_1;
+
+    // --- Circular weighted mean of best_angle and b_norm ---
     const float alpha   = static_cast<float>(b.count) / static_cast<float>(a.count + b.count);
     const float c_alpha = 1.0f - alpha;
 
+    // Convert to unit vectors, compute weighted sum, then back to angle
+    const float sum_sin = c_alpha * sinf(best_angle) + alpha * sinf(b_norm);
+    const float sum_cos = c_alpha * cosf(best_angle) + alpha * cosf(b_norm);
+    float blended_orientation = atan2f(sum_sin, sum_cos);          // returns in [-π, π]
+    if (blended_orientation < 0.0f) blended_orientation += two_pi; // map to [0, 2π)
+
+    // All other fields are blended linearly (they are not circular)
     return scalar_reduction_state{
         c_alpha * a.radius              + alpha * b.radius,
-        c_alpha * candidates[best].z0   + alpha * b.z_coordinate_0,
-        c_alpha * candidates[best].z1   + alpha * b.z_coordinate_1,
-        c_alpha * candidates[best].orientation + alpha * b.orientation,
+        c_alpha * best_z0               + alpha * b.z_coordinate_0,
+        c_alpha * best_z1               + alpha * b.z_coordinate_1,
+        blended_orientation,
         c_alpha * a.orientation_velocity + alpha * b.orientation_velocity,
         c_alpha * a.center_x            + alpha * b.center_x,
         c_alpha * a.center_y            + alpha * b.center_y,
@@ -333,36 +357,47 @@ class particle_filter_configuration {
       const float predicted_yaw =
           atan2f(py[pred_idx] - cy, px[pred_idx] - cx);
 
-      const float view_ray_yaw =
-          atan2f(py[pred_idx] - oy, px[pred_idx] - ox);
+      const float yaw_error_raw = obs.yaw() - predicted_yaw;
+      const float yaw_error = helper::wrap_to_pi(yaw_error_raw);
 
-      const float mirrored_predicted_yaw =
-          2.0f * view_ray_yaw - predicted_yaw;
-
-      const float yaw_error =
-          helper::wrap_half_turn(obs.yaw() - predicted_yaw);
-
-      const float mirrored_yaw_error =
-          helper::wrap_half_turn(obs.yaw() - mirrored_predicted_yaw);
-
-      const float yaw_variance =
-          thrust::max(1.0e-6f, obs.yaw_variance());
-
+      const float yaw_variance = thrust::max(1.0e-6f, obs.yaw_variance());
       const float log_yaw_density =
           sampler.unnormalized_normal_log_density(
               yaw_variance,
               yaw_error);
+      
+      const float final_yaw_density = log_yaw_density;
 
-      const float log_mirrored_yaw_density =
-          sampler.unnormalized_normal_log_density(
-              yaw_variance,
-              mirrored_yaw_error)
-          - params_.mirrored_yaw_penalty;
+      // const float view_ray_yaw =
+      //     atan2f(py[pred_idx] - oy, px[pred_idx] - ox);
 
-      const float final_yaw_density =
-          helper::log_sum_exp(
-              log_yaw_density,
-              log_mirrored_yaw_density);
+      // const float mirrored_predicted_yaw =
+      //     2.0f * view_ray_yaw - predicted_yaw;
+
+      // const float yaw_error =
+      //     helper::wrap_to_pi(obs.yaw() - predicted_yaw);
+
+      // const float mirrored_yaw_error =
+      //     helper::wrap_to_pi(obs.yaw() - mirrored_predicted_yaw);
+
+      // const float yaw_variance =
+      //   thrust::max(1.0e-6f, obs.yaw_variance());
+
+      // const float log_yaw_density =
+      //     sampler.unnormalized_normal_log_density(
+      //         yaw_variance,
+      //         yaw_error);
+
+      // const float log_mirrored_yaw_density =
+      //     sampler.unnormalized_normal_log_density(
+      //         yaw_variance,
+      //         mirrored_yaw_error)
+      //     - params_.mirrored_yaw_penalty;
+
+      // const float final_yaw_density =
+      //     helper::log_sum_exp(
+      //         log_yaw_density,
+      //         log_mirrored_yaw_density);
 
       return pos_log_density + final_yaw_density;
     };

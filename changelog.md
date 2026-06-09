@@ -7,4 +7,5 @@
 1.3.0 Adds in corrected Z-height logic
 
 # 1.4
-Allows for reintialization with a dynamic prior
+1.4.0 Allows for reintialization with a dynamic prior
+1.4.1 Fixes some theta computation math
