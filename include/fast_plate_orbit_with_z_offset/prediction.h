@@ -1,15 +1,15 @@
 #pragma once
 
-#include <plate_orbit_v2/prediction_soa.h>
+#include <fast_plate_orbit_with_z_offset/observation.h>
+#include <fast_plate_orbit_with_z_offset/predicted_plate.h>
+#include <fast_plate_orbit_with_z_offset/prediction_soa.h>
 #include <pf/config/target_config.h>
 #include <pf/util/device_array.h>
-#include <plate_orbit_v2/observation.h>
-#include <plate_orbit_v2/predicted_plate.h>
 
 #include <Eigen/Dense>
 #include <array>
 
-namespace plate_orbit_v2 {
+namespace fast_plate_orbit_with_z_offset {
 
 namespace helper {
 
@@ -18,20 +18,16 @@ PF_TARGET_ATTRS [[nodiscard]] inline Eigen::Vector3f rpad_zero(const Eigen::Vect
 }
 
 PF_TARGET_ATTRS [[nodiscard]] inline float to_orientation(const float& angle_radians) noexcept {
-  const float value = fmod(angle_radians, M_PI);
-  return (value < 0.0f) ? value + M_PI : value;
+  const float two_pi = 2.0f * static_cast<float>(M_PI);
+  const float value = fmodf(angle_radians, two_pi);
+  return (value < 0.0f) ? value + two_pi : value;
 }
 
 PF_TARGET_ATTRS [[nodiscard]] inline float to_radius(const float& radius) noexcept {
   constexpr float min_radius = 0.2f;
-  constexpr float max_radius = 1.0f;
+  constexpr float max_radius = 0.6f;
   return thrust::max(min_radius, thrust::min(max_radius, radius));
 }
-
-struct radii_update_configuration {
-  static constexpr float offset_limit = 0.15f;
-  PF_TARGET_ATTRS [[nodiscard]] static inline float post_process(const float& value) noexcept { return to_radius(value); }
-};
 
 struct z_coordinate_update_configuration {
   static constexpr float offset_limit = 0.08f;
@@ -61,8 +57,7 @@ class prediction {
  private:
   static constexpr size_t number_of_plates = 4;
 
-  float radius_0_;
-  float radius_1_;
+  float radius_;
   float z_coordinate_0_;
   float z_coordinate_1_;
   float orientation_;
@@ -98,10 +93,10 @@ class prediction {
 
   PF_TARGET_ATTRS [[nodiscard]] pf::util::device_array<predicted_plate, number_of_plates> predicted_plates() const noexcept {
     const pf::util::device_array<angle_offset_and_z_coordinate_and_radius, number_of_plates> angle_offsets_and_radii = {
-        angle_offset_and_z_coordinate_and_radius{.angle_offset = 0.0f,          .z_coordinate = z_coordinate_0_, .radius = radius_0_},
-        angle_offset_and_z_coordinate_and_radius{.angle_offset = M_PI_2,        .z_coordinate = z_coordinate_1_, .radius = radius_1_},
-        angle_offset_and_z_coordinate_and_radius{.angle_offset = M_PI,          .z_coordinate = z_coordinate_0_, .radius = radius_0_},
-        angle_offset_and_z_coordinate_and_radius{.angle_offset = M_PI + M_PI_2, .z_coordinate = z_coordinate_1_, .radius = radius_1_},
+        angle_offset_and_z_coordinate_and_radius{.angle_offset = 0.0f,         .z_coordinate = z_coordinate_0_, .radius = radius_},
+        angle_offset_and_z_coordinate_and_radius{.angle_offset = M_PI_2,       .z_coordinate = z_coordinate_1_, .radius = radius_},
+        angle_offset_and_z_coordinate_and_radius{.angle_offset = M_PI,         .z_coordinate = z_coordinate_0_, .radius = radius_},
+        angle_offset_and_z_coordinate_and_radius{.angle_offset = M_PI + M_PI_2,.z_coordinate = z_coordinate_1_, .radius = radius_},
     };
 
     return angle_offsets_and_radii.transformed([this](const angle_offset_and_z_coordinate_and_radius& value) {
@@ -113,7 +108,8 @@ class prediction {
 
       const Eigen::Vector3f predicted_plate_velocity =
           helper::rpad_zero(center_velocity_) +
-          orientation_velocity_ * (Eigen::Vector3f{} << -value.radius * sinf(angle), value.radius * cosf(angle), 0.0f).finished();
+          orientation_velocity_ *
+              (Eigen::Vector3f{} << -value.radius * sinf(angle), value.radius * cosf(angle), 0.0f).finished();
 
       return predicted_plate(predicted_plate_position, predicted_plate_velocity);
     });
@@ -121,8 +117,7 @@ class prediction {
 
   PF_TARGET_ATTRS [[nodiscard]] prediction extrapolate_state(const float& time_offset_seconds) const noexcept {
     return prediction(
-        radius_0_,
-        radius_1_,
+        radius_,
         z_coordinate_0_,
         z_coordinate_1_,
         orientation_ + time_offset_seconds * orientation_velocity_,
@@ -133,9 +128,7 @@ class prediction {
 
   PF_TARGET_ATTRS void update_state(
       const float& time_offset_seconds,
-      const float& radius_noise_common,
-      const float& radius_noise_0,
-      const float& radius_noise_1,
+      const float& radius_noise,
       const float& z_coordinate_noise_common,
       const float& z_coordinate_noise_0,
       const float& z_coordinate_noise_1,
@@ -146,14 +139,12 @@ class prediction {
     static constexpr float one_half    = 1.0 / 2.0;
     static constexpr float one_twelfth = 1.0 / 12.0;
 
-    const float radius_noise_scale        = sqrtf(time_offset_seconds);
-    const float z_coordinate_noise_scale  = radius_noise_scale;
-    const float velocity_noise_scale      = radius_noise_scale;
-    const float position_noise_scale      = sqrtf(one_twelfth) * powf(velocity_noise_scale, 3);
+    const float radius_noise_scale          = sqrtf(time_offset_seconds);
+    const float z_coordinate_noise_scale    = radius_noise_scale;
+    const float velocity_noise_scale        = radius_noise_scale;
+    const float position_noise_scale        = sqrtf(one_twelfth) * powf(velocity_noise_scale, 3);
 
-    const float d_radius_common = radius_noise_scale * radius_noise_common;
-    const float d_radius_0      = radius_noise_scale * radius_noise_0;
-    const float d_radius_1      = radius_noise_scale * radius_noise_1;
+    const float d_radius = radius_noise_scale * radius_noise;
 
     const float d_z_coordinate_common = z_coordinate_noise_scale * z_coordinate_noise_common;
     const float d_z_coordinate_0      = z_coordinate_noise_scale * z_coordinate_noise_0;
@@ -171,8 +162,7 @@ class prediction {
         one_half * time_offset_seconds * d_center_velocity +
         position_noise_scale * center_velocity_noise_0;
 
-    helper::update_value_offsets<helper::radii_update_configuration>(
-        d_radius_common, d_radius_0, d_radius_1, radius_0_, radius_1_);
+    radius_ = helper::to_radius(radius_ + d_radius);
 
     helper::update_value_offsets<helper::z_coordinate_update_configuration>(
         d_z_coordinate_common, d_z_coordinate_0, d_z_coordinate_1, z_coordinate_0_, z_coordinate_1_);
@@ -183,8 +173,7 @@ class prediction {
     center_velocity_      = center_velocity_ + d_center_velocity;
   }
 
-  PF_TARGET_ATTRS [[nodiscard]] const float& radius_0() const noexcept { return radius_0_; }
-  PF_TARGET_ATTRS [[nodiscard]] const float& radius_1() const noexcept { return radius_1_; }
+  PF_TARGET_ATTRS [[nodiscard]] const float& radius() const noexcept { return radius_; }
   PF_TARGET_ATTRS [[nodiscard]] const float& z_coordinate_0() const noexcept { return z_coordinate_0_; }
   PF_TARGET_ATTRS [[nodiscard]] const float& z_coordinate_1() const noexcept { return z_coordinate_1_; }
   PF_TARGET_ATTRS [[nodiscard]] const float& orientation() const noexcept { return orientation_; }
@@ -193,8 +182,7 @@ class prediction {
   PF_TARGET_ATTRS [[nodiscard]] const Eigen::Vector2f& center_velocity() const noexcept { return center_velocity_; }
 
   PF_TARGET_ATTRS prediction() noexcept
-      : radius_0_{0.0f},
-        radius_1_{0.0f},
+      : radius_{0.0f},
         z_coordinate_0_{0.0f},
         z_coordinate_1_{0.0f},
         orientation_{0.0f},
@@ -203,16 +191,14 @@ class prediction {
         center_velocity_{Eigen::Vector2f::Zero()} {}
 
   PF_TARGET_ATTRS prediction(
-      const float& radius_0,
-      const float& radius_1,
+      const float& radius,
       const float& z_coordinate_0,
       const float& z_coordinate_1,
       const float& orientation,
       const float& orientation_velocity,
       const Eigen::Vector2f& center,
       const Eigen::Vector2f& center_velocity) noexcept
-      : radius_0_{helper::to_radius(radius_0)},
-        radius_1_{helper::to_radius(radius_1)},
+      : radius_{helper::to_radius(radius)},
         z_coordinate_0_{z_coordinate_0},
         z_coordinate_1_{z_coordinate_1},
         orientation_{helper::to_orientation(orientation)},
@@ -221,4 +207,4 @@ class prediction {
         center_velocity_{center_velocity} {}
 };
 
-}  // namespace plate_orbit_v2
+}  // namespace fast_plate_orbit_with_z_offset

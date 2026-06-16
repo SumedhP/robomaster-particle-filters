@@ -1,6 +1,6 @@
 from skbuild import setup
 
-__version__ = "1.0.0"
+__version__ = "1.3.0"
 
 base_setup_options = {
     "name": "robomaster_particle_filters",
@@ -11,7 +11,7 @@ base_setup_options = {
     "long_description": "",
     "zip_safe": False,
     "packages": ['robomaster_particle_filters'],
-    "package_data": {'robomaster_particle_filters': ['__init__.pyi']},
+    "package_data": {'robomaster_particle_filters': ['*.pyi', 'py.typed']},
     "package_dir": {'': 'src'},
     "python_requires": ">=3.8",
 }
