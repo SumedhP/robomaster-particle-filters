@@ -28,6 +28,10 @@ void particle_filter::update_state_with_observation(
   p_impl_->update_state_with_observation(time_offset_seconds, observation_state);
 }
 
+void particle_filter::reinitialize(const observation& initial_observation) noexcept {
+  p_impl_->reinitialize(initial_observation);
+}
+
 particle_filter::particle_filter(
     const std::size_t& number_of_particles,
     const observation& initial_observation,

@@ -22,6 +22,7 @@ class particle_filter {
 
   void update_state_sans_observation(const float& time_offset_seconds) noexcept;
   void update_state_with_observation(const float& time_offset_seconds, const observation& observation_state) noexcept;
+  void reinitialize(const observation& initial_observation) noexcept;
 
   particle_filter(
       const std::size_t& number_of_particles,

@@ -57,6 +57,11 @@ void init(py::module_& m) noexcept {
       .def(
           "update_state_with_observation",
           &particle_filter::update_state_with_observation,
+          py::call_guard<py::gil_scoped_release>())
+    
+      .def(
+          "reinitialize",
+          static_cast<void (particle_filter::*)(const observation&) noexcept>(&particle_filter::reinitialize),
           py::call_guard<py::gil_scoped_release>());
 }
 
