@@ -40,8 +40,8 @@ struct ou_coefficients {
 
 // Pairwise reduction producing a moment matched Gaussian over the particle
 // population. Unlike v2 this has to align covariances as well as means, which
-// the (common, offset) basis makes trivial: the pi/2 relabeling is a signed
-// diagonal similarity transform.
+// the height (common, offset) basis makes trivial: the pi/2 relabeling is a
+// signed diagonal similarity transform.
 struct most_likely_particle_reduction_impl {
   using state_type = pf::filter::particle_reduction_state<prediction>;
   static constexpr float half_pi = static_cast<float>(M_PI_2);
@@ -57,7 +57,7 @@ struct most_likely_particle_reduction_impl {
 
     // Candidate branches of the plate relabeling symmetry, expressed as a
     // number of quarter turns applied to a. An odd number of quarter turns
-    // negates both offset modes; a half turn is the identity.
+    // negates the height offset mode; a half turn is the identity.
     float best_orientation = a_particle.orientation();
     int best_quarter_turns = 0;
     float best_distance = fabsf(target - a_particle.orientation());
@@ -109,8 +109,8 @@ class particle_filter_configuration {
   // exact, not a linearization: cos(angle) and sin(angle) are known constants
   // once the particle has committed to a hypothesis.
   //
-  //   x = c_x + (r_c + s * r_o) * cos(angle)
-  //   y = c_y + (r_c + s * r_o) * sin(angle)
+  //   x = c_x + r * cos(angle)
+  //   y = c_y + r * sin(angle)
   //   z = z_c + s * z_o
   PF_TARGET_ATTRS [[nodiscard]] static Eigen::Matrix<float, 3, linear_state::dimension>
   plate_jacobian(const float& angle, const float& sign) noexcept {
@@ -121,12 +121,10 @@ class particle_filter_configuration {
     const float sin_angle = sinf(angle);
 
     jacobian(0, linear_state::index_center_x) = 1.0f;
-    jacobian(0, linear_state::index_radius_common) = cos_angle;
-    jacobian(0, linear_state::index_radius_offset) = sign * cos_angle;
+    jacobian(0, linear_state::index_radius) = cos_angle;
 
     jacobian(1, linear_state::index_center_y) = 1.0f;
-    jacobian(1, linear_state::index_radius_common) = sin_angle;
-    jacobian(1, linear_state::index_radius_offset) = sign * sin_angle;
+    jacobian(1, linear_state::index_radius) = sin_angle;
 
     jacobian(2, linear_state::index_z_common) = 1.0f;
     jacobian(2, linear_state::index_z_offset) = sign;
@@ -245,38 +243,52 @@ class particle_filter_configuration {
     // unchanged, as it must.
     const float coupling = q_cross / q_angle;
 
-    linear_state::matrix_type transition = linear_state::matrix_type::Identity();
+    // The transition is a diagonal plus exactly two off diagonal entries, both
+    // equal to dt, and both sitting in rows whose diagonal entry is one. That
+    // means it factors exactly as
+    //
+    //   T = D * S,   S = I + dt * (e_cx e_vx^T + e_cy e_vy^T)
+    //
+    // so the propagation T P T^T = D (S P S^T) D is a pair of row/column
+    // shears followed by a diagonal scaling, rather than two dense 9x9
+    // products that exist to move eleven nonzeros around.
+    linear_state::vector_type retention = linear_state::vector_type::Ones();
     linear_state::vector_type offset = linear_state::vector_type::Zero();
     linear_state::vector_type process_variance = linear_state::vector_type::Zero();
 
-    transition(linear_state::index_orientation_velocity, linear_state::index_orientation_velocity) =
-        1.0f - coupling * dt;
+    retention[linear_state::index_orientation_velocity] = 1.0f - coupling * dt;
     offset[linear_state::index_orientation_velocity] = coupling * increment;
     process_variance[linear_state::index_orientation_velocity] = q_velocity - (q_cross * q_cross) / q_angle;
 
-    transition(linear_state::index_center_x, linear_state::index_center_velocity_x) = dt;
-    transition(linear_state::index_center_y, linear_state::index_center_velocity_y) = dt;
-
-    const auto radius_common = helper::ou_coefficients::from(
-        dt, params_.radius_common_reversion_time_constant, params_.radius_prior_variance_one_plate);
-    transition(linear_state::index_radius_common, linear_state::index_radius_common) = radius_common.retention;
-    offset[linear_state::index_radius_common] = (1.0f - radius_common.retention) * params_.radius_prior;
-    process_variance[linear_state::index_radius_common] = params_.radius_common_process_variance * dt;
-
-    const auto radius_offset = helper::ou_coefficients::from(
-        dt, params_.radius_offset_reversion_time_constant, params_.radius_offset_stationary_variance);
-    transition(linear_state::index_radius_offset, linear_state::index_radius_offset) = radius_offset.retention;
-    process_variance[linear_state::index_radius_offset] = radius_offset.process_variance;
+    const auto radius = helper::ou_coefficients::from(
+        dt, params_.radius_reversion_time_constant, params_.radius_prior_variance_one_plate);
+    retention[linear_state::index_radius] = radius.retention;
+    offset[linear_state::index_radius] = (1.0f - radius.retention) * params_.radius_prior;
+    process_variance[linear_state::index_radius] = params_.radius_process_variance * dt;
 
     process_variance[linear_state::index_z_common] = params_.z_common_process_variance * dt;
 
     const auto z_offset = helper::ou_coefficients::from(
         dt, params_.z_offset_reversion_time_constant, params_.z_offset_stationary_variance);
-    transition(linear_state::index_z_offset, linear_state::index_z_offset) = z_offset.retention;
+    retention[linear_state::index_z_offset] = z_offset.retention;
     process_variance[linear_state::index_z_offset] = z_offset.process_variance;
 
-    linear.mean_ = transition * linear.mean_ + offset;
-    linear.covariance_ = transition * linear.covariance_ * transition.transpose();
+    // S, then D. Rows before columns, so the column pass sees S * P.
+    linear.mean_[linear_state::index_center_x] += dt * linear.mean_[linear_state::index_center_velocity_x];
+    linear.mean_[linear_state::index_center_y] += dt * linear.mean_[linear_state::index_center_velocity_y];
+    linear.mean_ = retention.cwiseProduct(linear.mean_) + offset;
+
+    linear.covariance_.row(linear_state::index_center_x) +=
+        dt * linear.covariance_.row(linear_state::index_center_velocity_x);
+    linear.covariance_.row(linear_state::index_center_y) +=
+        dt * linear.covariance_.row(linear_state::index_center_velocity_y);
+
+    linear.covariance_.col(linear_state::index_center_x) +=
+        dt * linear.covariance_.col(linear_state::index_center_velocity_x);
+    linear.covariance_.col(linear_state::index_center_y) +=
+        dt * linear.covariance_.col(linear_state::index_center_velocity_y);
+
+    linear.covariance_ = retention.asDiagonal() * linear.covariance_ * retention.asDiagonal();
 
     linear.covariance_.diagonal() += process_variance;
 
@@ -412,7 +424,7 @@ class particle_filter_configuration {
     linear_state::vector_type mean = linear_state::vector_type::Zero();
     mean[linear_state::index_center_x] = center[0];
     mean[linear_state::index_center_y] = center[1];
-    mean[linear_state::index_radius_common] = orbit.radius;
+    mean[linear_state::index_radius] = orbit.radius;
     mean[linear_state::index_z_common] = state.plate_one().position()[2];
 
     const Eigen::Vector3f observation_variance = state.plate_one().position_diagonal_covariance();
@@ -423,8 +435,7 @@ class particle_filter_configuration {
     variance[linear_state::index_center_y] = observation_variance[1];
     variance[linear_state::index_center_velocity_x] = params_.center_velocity_prior_diagonal_covariance[0];
     variance[linear_state::index_center_velocity_y] = params_.center_velocity_prior_diagonal_covariance[1];
-    variance[linear_state::index_radius_common] = radius_variance;
-    variance[linear_state::index_radius_offset] = params_.radius_offset_stationary_variance;
+    variance[linear_state::index_radius] = radius_variance;
     variance[linear_state::index_z_common] = observation_variance[2];
     variance[linear_state::index_z_offset] = params_.z_offset_stationary_variance;
 

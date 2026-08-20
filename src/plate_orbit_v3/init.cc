@@ -34,8 +34,7 @@ void init(py::module_& m) noexcept {
 
   py::class_<prediction>(plate_orbit_v3, "Prediction")
       .def("predicted_plates", &prediction::predicted_plates_for_host)
-      .def("radius_0", &prediction::radius_0)
-      .def("radius_1", &prediction::radius_1)
+      .def("radius", &prediction::radius)
       .def("z_coordinate_0", &prediction::z_coordinate_0)
       .def("z_coordinate_1", &prediction::z_coordinate_1)
       .def("orientation", &prediction::orientation)
@@ -53,10 +52,8 @@ void init(py::module_& m) noexcept {
            float,   // visibility_logit_coefficient
            float,   // radius_prior_variance_one_plate
            float,   // radius_prior_variance_two_plates
-           float,   // radius_common_process_variance
-           float,   // radius_common_reversion_time_constant
-           float,   // radius_offset_stationary_variance
-           float,   // radius_offset_reversion_time_constant
+           float,   // radius_process_variance
+           float,   // radius_reversion_time_constant
            float,   // z_common_process_variance
            float,   // z_offset_stationary_variance
            float,   // z_offset_reversion_time_constant
@@ -64,17 +61,11 @@ void init(py::module_& m) noexcept {
            float,   // orientation_velocity_prior_variance
            float,   // orientation_velocity_process_variance
            Eigen::Vector2f,   // center_velocity_prior_diagonal_covariance
-           Eigen::Vector2f,   // center_velocity_process_diagonal_covariance
-           float>());         // resample_effective_sample_size_fraction
+           Eigen::Vector2f>());   // center_velocity_process_diagonal_covariance
 
   py::class_<particle_filter>(plate_orbit_v3, "ParticleFilter")
       .def(py::init<size_t, observation, particle_filter_configuration_parameters>())
       .def("extrapolate_state", &particle_filter::extrapolate_state, py::call_guard<py::gil_scoped_release>())
-
-      // New in v3: diagnostics for the resampling schedule. A healthy track
-      // holds a high effective sample size and resamples only occasionally.
-      .def("effective_sample_size", &particle_filter::effective_sample_size, py::call_guard<py::gil_scoped_release>())
-      .def("resampled", &particle_filter::resampled, py::call_guard<py::gil_scoped_release>())
 
       .def(
           "update_state_sans_observation",

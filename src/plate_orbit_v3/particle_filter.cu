@@ -1,15 +1,15 @@
 #include <plate_orbit_v3/particle_filter.h>
 #include <plate_orbit_v3/particle_filter_configuration.h>
-#include <util/rb_particle_filter.h>
+#include <pf/filter/particle_filter.h>
 
 #include <utility>
 
 namespace plate_orbit_v3 {
 
-struct particle_filter::impl : public util::rb_particle_filter<particle_filter_configuration> {
+struct particle_filter::impl : public pf::filter::particle_filter<particle_filter_configuration> {
  public:
   template <typename... Ts>
-  impl(Ts&&... ts) : util::rb_particle_filter<particle_filter_configuration>(std::forward<Ts>(ts)...) {}
+  impl(Ts&&... ts) : pf::filter::particle_filter<particle_filter_configuration>(std::forward<Ts>(ts)...) {}
 };
 
 void particle_filter::impl_deleter::operator()(particle_filter::impl* p_impl) { delete p_impl; }
@@ -17,9 +17,6 @@ void particle_filter::impl_deleter::operator()(particle_filter::impl* p_impl) { 
 prediction particle_filter::extrapolate_state(const float& time_offset_seconds) const noexcept {
   return p_impl_->extrapolate_state(time_offset_seconds);
 }
-
-float particle_filter::effective_sample_size() const noexcept { return p_impl_->effective_sample_size(); }
-bool particle_filter::resampled() const noexcept { return p_impl_->resampled(); }
 
 void particle_filter::update_state_sans_observation(const float& time_offset_seconds) noexcept {
   p_impl_->update_state_sans_observation(time_offset_seconds);
@@ -41,7 +38,6 @@ particle_filter::particle_filter(
     const particle_filter_configuration_parameters& params) noexcept
     : p_impl_(new particle_filter::impl(
           number_of_particles,
-          params.resample_effective_sample_size_fraction,
           initial_observation,
           params)) {}
 

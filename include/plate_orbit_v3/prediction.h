@@ -50,9 +50,7 @@ class prediction {
 
   PF_TARGET_ATTRS void set_orientation(const float& value) noexcept { orientation_ = helper::to_orientation(value); }
 
-  // Mirrors the v2 accessor surface so downstream consumers do not change.
-  PF_TARGET_ATTRS [[nodiscard]] float radius_0() const noexcept { return linear_.radius_0(); }
-  PF_TARGET_ATTRS [[nodiscard]] float radius_1() const noexcept { return linear_.radius_1(); }
+  PF_TARGET_ATTRS [[nodiscard]] float radius() const noexcept { return linear_.radius(); }
   PF_TARGET_ATTRS [[nodiscard]] float z_coordinate_0() const noexcept { return linear_.z_coordinate_0(); }
   PF_TARGET_ATTRS [[nodiscard]] float z_coordinate_1() const noexcept { return linear_.z_coordinate_1(); }
   PF_TARGET_ATTRS [[nodiscard]] float orientation_velocity() const noexcept { return linear_.orientation_velocity(); }
@@ -61,12 +59,14 @@ class prediction {
 
   // New in v3: the filter now reports calibrated uncertainty rather than only
   // a point estimate, which is what makes downstream shot gating possible.
-  [[nodiscard]] Eigen::Matrix<float, 9, 9> covariance_for_host() const noexcept { return linear_.covariance(); }
+  [[nodiscard]] Eigen::Matrix<float, linear_state::dimension, linear_state::dimension>
+  covariance_for_host() const noexcept {
+    return linear_.covariance();
+  }
 
   PF_TARGET_ATTRS [[nodiscard]] pf::util::device_array<plate_parameters, number_of_plates> plate_parameters_array()
       const noexcept {
-    const float radius_common = linear_.mean()[linear_state::index_radius_common];
-    const float radius_offset = linear_.mean()[linear_state::index_radius_offset];
+    const float radius = linear_.radius();
     const float z_common = linear_.mean()[linear_state::index_z_common];
     const float z_offset = linear_.mean()[linear_state::index_z_offset];
 
@@ -77,7 +77,7 @@ class prediction {
           .index = k,
           .angle = orientation_ + static_cast<float>(k) * static_cast<float>(M_PI_2),
           .sign = sign,
-          .radius = radius_common + sign * radius_offset,
+          .radius = radius,
           .z_coordinate = z_common + sign * z_offset,
       };
     }

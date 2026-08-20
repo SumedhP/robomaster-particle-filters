@@ -8,7 +8,7 @@ namespace plate_orbit_v3 {
 
 // The Rao-Blackwellized linear substate. Conditional on the orientation
 // (which is carried by the particle) both the process model and the plate
-// position measurement model are exactly linear in these nine quantities,
+// position measurement model are exactly linear in these eight quantities,
 // so their posterior is an exact Gaussian maintained by a Kalman filter.
 //
 //   index  quantity
@@ -18,31 +18,41 @@ namespace plate_orbit_v3 {
 //     2    center y               (m)
 //     3    center velocity x      (m / s)
 //     4    center velocity y      (m / s)
-//     5    radius common mode     (m)      r_k = r_c + s_k * r_o
-//     6    radius offset mode     (m)      s_k = +1 (k even), -1 (k odd)
-//     7    z common mode          (m)      z_k = z_c + s_k * z_o
-//     8    z offset mode          (m)
+//     5    radius                 (m)      shared by all four plates
+//     6    z common mode          (m)      z_k = z_c + s_k * z_o
+//     7    z offset mode          (m)      s_k = +1 (k even), -1 (k odd)
 //
-// The (common, offset) basis replaces v2's (value_0, value_1) pair. It makes
-// the process noise diagonal, turns the pi/2 plate relabeling symmetry into a
-// signed permutation, and lets the bounded-offset clamp become linear
-// Ornstein-Uhlenbeck mean reversion.
+// The chassis is modeled as circular: one radius for all four plates. The
+// plate heights keep the (common, offset) split, because opposing pairs
+// genuinely do sit at two different heights.
+//
+// This asymmetry between radius and height is not arbitrary. Perturbing the
+// center by delta and every radius by -delta * e_k leaves all four plate
+// positions unchanged when the yaw is fixed, so per-plate radii are only
+// weakly identifiable against center position. Heights have no such
+// degeneracy: the body z axis stays aligned with world z whatever the robot
+// does, so the height split is observable whenever a plate is seen.
 
 struct linear_state {
-  static constexpr int dimension = 9;
+  static constexpr int dimension = 8;
 
   static constexpr int index_orientation_velocity = 0;
   static constexpr int index_center_x = 1;
   static constexpr int index_center_y = 2;
   static constexpr int index_center_velocity_x = 3;
   static constexpr int index_center_velocity_y = 4;
-  static constexpr int index_radius_common = 5;
-  static constexpr int index_radius_offset = 6;
-  static constexpr int index_z_common = 7;
-  static constexpr int index_z_offset = 8;
+  static constexpr int index_radius = 5;
+  static constexpr int index_z_common = 6;
+  static constexpr int index_z_offset = 7;
 
-  using vector_type = Eigen::Matrix<float, dimension, 1>;
-  using matrix_type = Eigen::Matrix<float, dimension, dimension>;
+  // DontAlign is required, not cosmetic. At dimension 8 these types are 32 and
+  // 256 bytes, which makes them "fixed-size vectorizable" in Eigen's sense, so
+  // Eigen would demand 32 byte alignment for every one of them. These live
+  // inside prediction, which lives inside a thrust vector whose allocator makes
+  // no such guarantee, and the misaligned AVX load segfaults. At dimension 9
+  // the types were 36 bytes and the question never arose.
+  using vector_type = Eigen::Matrix<float, dimension, 1, Eigen::DontAlign>;
+  using matrix_type = Eigen::Matrix<float, dimension, dimension, Eigen::DontAlign>;
 
   vector_type mean_;
   matrix_type covariance_;
@@ -62,13 +72,7 @@ struct linear_state {
     return mean_.segment<2>(index_center_velocity_x);
   }
 
-  PF_TARGET_ATTRS [[nodiscard]] float radius_0() const noexcept {
-    return mean_[index_radius_common] + mean_[index_radius_offset];
-  }
-
-  PF_TARGET_ATTRS [[nodiscard]] float radius_1() const noexcept {
-    return mean_[index_radius_common] - mean_[index_radius_offset];
-  }
+  PF_TARGET_ATTRS [[nodiscard]] const float& radius() const noexcept { return mean_[index_radius]; }
 
   PF_TARGET_ATTRS [[nodiscard]] float z_coordinate_0() const noexcept {
     return mean_[index_z_common] + mean_[index_z_offset];
@@ -78,18 +82,15 @@ struct linear_state {
     return mean_[index_z_common] - mean_[index_z_offset];
   }
 
-  // theta -> theta + pi/2 maps plate k onto plate k+1, which negates both
-  // offset modes and leaves every other coordinate alone. As a similarity
-  // transform this is a signed diagonal, so it applies to the covariance as
-  // T * P * T^T with no matrix multiply required.
+  // theta -> theta + pi/2 maps plate k onto plate k+1, which negates the
+  // height offset mode and leaves every other coordinate alone. As a
+  // similarity transform this is a signed diagonal, so it applies to the
+  // covariance as T * P * T^T with no matrix multiply required.
   PF_TARGET_ATTRS void apply_quarter_turn_relabeling() noexcept {
-    mean_[index_radius_offset] = -mean_[index_radius_offset];
     mean_[index_z_offset] = -mean_[index_z_offset];
 
     for (int i = 0; i < dimension; ++i) {
-      if (i == index_radius_offset || i == index_z_offset) { continue; }
-      covariance_(i, index_radius_offset) = -covariance_(i, index_radius_offset);
-      covariance_(index_radius_offset, i) = -covariance_(index_radius_offset, i);
+      if (i == index_z_offset) { continue; }
       covariance_(i, index_z_offset) = -covariance_(i, index_z_offset);
       covariance_(index_z_offset, i) = -covariance_(index_z_offset, i);
     }

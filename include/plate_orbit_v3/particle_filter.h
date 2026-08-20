@@ -20,9 +20,6 @@ class particle_filter {
  public:
   [[nodiscard]] prediction extrapolate_state(const float& time_offset_seconds) const noexcept;
 
-  [[nodiscard]] float effective_sample_size() const noexcept;
-  [[nodiscard]] bool resampled() const noexcept;
-
   void update_state_sans_observation(const float& time_offset_seconds) noexcept;
   void update_state_with_observation(const float& time_offset_seconds, const observation& observation_state) noexcept;
   void reinitialize(const observation& initial_observation) noexcept;
