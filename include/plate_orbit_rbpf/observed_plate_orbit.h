@@ -2,7 +2,7 @@
 
 #include <Eigen/Dense>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 struct observed_plate_orbit {
   float radius;
@@ -10,4 +10,4 @@ struct observed_plate_orbit {
   Eigen::Vector3f center;
 };
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf

@@ -4,7 +4,7 @@
 
 #include <Eigen/Dense>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 class observed_plate {
  private:
@@ -23,4 +23,4 @@ class observed_plate {
       : position_{position}, position_diagonal_covariance_{position_diagonal_covariance} {}
 };
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf

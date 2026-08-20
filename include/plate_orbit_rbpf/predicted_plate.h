@@ -5,7 +5,7 @@
 
 #include <Eigen/Dense>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 class predicted_plate {
  private:
@@ -22,4 +22,4 @@ class predicted_plate {
       : position_{position}, velocity_{velocity} {}
 };
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf

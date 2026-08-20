@@ -1,12 +1,12 @@
 #pragma once
 
-#include <plate_orbit_v3/observed_plate.h>
-#include <plate_orbit_v3/observed_plate_orbit.h>
+#include <plate_orbit_rbpf/observed_plate.h>
+#include <plate_orbit_rbpf/observed_plate_orbit.h>
 #include <thrust/execution_policy.h>
 
 #include <Eigen/Dense>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 class observed_plate_orbit_builder {
  private:
@@ -48,4 +48,4 @@ class observed_plate_orbit_builder {
       : radius_prior_{radius_prior}, observer_position_{observer_position} {}
 };
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf

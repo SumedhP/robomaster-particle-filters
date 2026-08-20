@@ -1,14 +1,14 @@
 #pragma once
 
 #include <pf/util/device_array.h>
-#include <plate_orbit_v3/linear_state.h>
-#include <plate_orbit_v3/predicted_plate.h>
+#include <plate_orbit_rbpf/linear_state.h>
+#include <plate_orbit_rbpf/predicted_plate.h>
 
 #include <Eigen/Dense>
 #include <array>
 #include <cmath>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 namespace helper {
 
@@ -57,7 +57,7 @@ class prediction {
   PF_TARGET_ATTRS [[nodiscard]] Eigen::Vector2f center() const noexcept { return linear_.center(); }
   PF_TARGET_ATTRS [[nodiscard]] Eigen::Vector2f center_velocity() const noexcept { return linear_.center_velocity(); }
 
-  // New in v3: the filter now reports calibrated uncertainty rather than only
+  // New in the RBPF filter: it now reports calibrated uncertainty rather than only
   // a point estimate, which is what makes downstream shot gating possible.
   [[nodiscard]] Eigen::Matrix<float, linear_state::dimension, linear_state::dimension>
   covariance_for_host() const noexcept {
@@ -132,4 +132,4 @@ class prediction {
       : orientation_{helper::to_orientation(orientation)}, linear_{linear} {}
 };
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf

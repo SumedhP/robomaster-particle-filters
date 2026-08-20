@@ -2,7 +2,7 @@
 
 #include <pybind11/pybind11.h>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 void init(pybind11::module_& m) noexcept;
 

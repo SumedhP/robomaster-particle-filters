@@ -1,11 +1,11 @@
 #pragma once
-#include <plate_orbit_v3/observation.h>
-#include <plate_orbit_v3/particle_filter_configuration_parameters.h>
-#include <plate_orbit_v3/prediction.h>
+#include <plate_orbit_rbpf/observation.h>
+#include <plate_orbit_rbpf/particle_filter_configuration_parameters.h>
+#include <plate_orbit_rbpf/prediction.h>
 
 #include <memory>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 class particle_filter {
  private:
@@ -30,4 +30,4 @@ class particle_filter {
       const particle_filter_configuration_parameters& params) noexcept;
 };
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf

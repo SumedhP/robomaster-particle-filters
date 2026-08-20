@@ -2,11 +2,11 @@
 
 #include <cuda/std/optional>
 #include <pf/config/target_config.h>
-#include <plate_orbit_v3/observed_plate.h>
+#include <plate_orbit_rbpf/observed_plate.h>
 
 #include <Eigen/Dense>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 class observation {
  private:
@@ -40,4 +40,4 @@ class observation {
   }
 };
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf

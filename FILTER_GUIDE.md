@@ -11,7 +11,7 @@ The following variants of filters exist:
 | `FastPlateOrbitWithZOffset` | x, y, z, vx, vy, radius, orientation, angular velocity, plate height offset |
 | `PlateOrbit` | x, v, z, vx, vy, radius1, radius2, orientation, angular velocity |
 | `PlateOrbitV2` | x, v, z, vx, vy, radius1, radius2, orientation, angular velocity, plate height offset |
-| `PlateOrbitV3` | x, y, z, vx, vy, radius, orientation, angular velocity, plate height offset, estimated by a Rao-Blackwellized particle filter |
+| `PlateOrbitRBPF` | x, y, z, vx, vy, radius, orientation, angular velocity, plate height offset, estimated by a Rao-Blackwellized particle filter |
 
 For the above filters, plate height offset assumes that robots have 2 opposing pairs of plates at two different heights (z0, z1). This same opposing plate grouping is also used when defining radius1 and radius2, for ovular shaped robots. 
 
@@ -71,9 +71,9 @@ struct particle_filter_configuration_parameters {
 
 
 
-# PlateOrbitV3 (Rao-Blackwellized)
+# PlateOrbitRBPF (Rao-Blackwellized)
 
-`PlateOrbitV3` splits the state into a sampled part and an analytic part
+`PlateOrbitRBPF` splits the state into a sampled part and an analytic part
 instead of sampling all of it.
 
 Unlike the earlier filters it models the chassis as **circular**: one radius
@@ -100,7 +100,7 @@ line in `(c_x, c_y, r)` with Gaussian noise. The posterior is then an
 exact Gaussian and a Kalman filter computes it in closed form. The dynamics are
 linear in the same variables.
 
-So the orientation is the only quantity that makes the problem hard. V3 guesses
+So the orientation is the only quantity that makes the problem hard. It guesses
 it with particles and solves for the rest:
 
 | | states | dimension |
@@ -122,7 +122,7 @@ which returns `omega` unchanged for a noise-free increment of `dt * omega`, as
 it must.
 
 The guessing machine searches a 1D space instead of a 12D one, which is why
-V3 needs a few hundred particles where V2 needs on the order of a million.
+The RBPF needs a few hundred particles where V2 needs on the order of a million.
 
 ## Weighting
 
@@ -141,7 +141,7 @@ and cancelled.
 
 ## Heights in the (common, offset) basis
 
-V3 stores `z_c, z_o` rather than `z_0, z_1`, with `z_0 = z_c + z_o` and
+It stores `z_c, z_o` rather than `z_0, z_1`, with `z_0 = z_c + z_o` and
 `z_1 = z_c - z_o`. Two consequences:
 
 1. **The clamps become linear.** `to_radius`'s hard `[0.2, 1.0]` bound and the
@@ -160,13 +160,13 @@ V3 stores `z_c, z_o` rather than `z_0, z_1`, with `z_0 = z_c + z_o` and
 
 ## Resampling
 
-V3 runs on the stock `pf::filter::particle_filter`, which its configuration
+It runs on the stock `pf::filter::particle_filter`, which its configuration
 satisfies unmodified. Resampling is unconditional, once per observation.
 
 ## New output: calibrated uncertainty
 
 `Prediction.covariance()` returns the full 8x8 posterior covariance, ordered as
-in `plate_orbit_v3::linear_state`. This is genuinely informative rather than
+in `plate_orbit_rbpf::linear_state`. This is genuinely informative rather than
 decorative. Measured on a simulated 10 second track at 60 FPS, 1 cm per axis
 observation noise:
 
@@ -178,7 +178,7 @@ observation noise:
 
 The stationary case is the fundamental observability limit, not a filter
 defect: a robot that does not rotate never presents its other plate pair, so
-the height offset is weakly observable. V3 reports this honestly, which makes
+the height offset is weakly observable. It reports this honestly, which makes
 it usable for shot gating. V2 had no way to express it.
 
 ## Example configuration
@@ -199,7 +199,7 @@ particle_filter_configuration_parameters params{
   .z_offset_stationary_variance = 0.0016f,          // 4 cm sigma
   .z_offset_reversion_time_constant = 5.0f,
 
-  .orientation_prior_variance = 0.25f,              // 0.5 rad sigma; new in v3
+  .orientation_prior_variance = 0.25f,              // 0.5 rad sigma; new here
   .orientation_velocity_prior_variance = 100.0f,
   .orientation_velocity_process_variance = 5.0f,
 

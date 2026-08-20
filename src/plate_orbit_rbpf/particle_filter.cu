@@ -1,10 +1,10 @@
-#include <plate_orbit_v3/particle_filter.h>
-#include <plate_orbit_v3/particle_filter_configuration.h>
+#include <plate_orbit_rbpf/particle_filter.h>
+#include <plate_orbit_rbpf/particle_filter_configuration.h>
 #include <pf/filter/particle_filter.h>
 
 #include <utility>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 struct particle_filter::impl : public pf::filter::particle_filter<particle_filter_configuration> {
  public:
@@ -41,4 +41,4 @@ particle_filter::particle_filter(
           initial_observation,
           params)) {}
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf

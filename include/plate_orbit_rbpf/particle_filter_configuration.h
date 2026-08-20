@@ -3,21 +3,21 @@
 #include <pf/config/target_config.h>
 #include <pf/filter/particle_reduction_state.h>
 #include <pf/util/device_array.h>
-#include <plate_orbit_v3/linear_state.h>
-#include <plate_orbit_v3/observation.h>
-#include <plate_orbit_v3/observed_plate.h>
-#include <plate_orbit_v3/observed_plate_orbit.h>
-#include <plate_orbit_v3/observed_plate_orbit_builder.h>
-#include <plate_orbit_v3/particle_filter_configuration_parameters.h>
-#include <plate_orbit_v3/predicted_plate.h>
-#include <plate_orbit_v3/prediction.h>
+#include <plate_orbit_rbpf/linear_state.h>
+#include <plate_orbit_rbpf/observation.h>
+#include <plate_orbit_rbpf/observed_plate.h>
+#include <plate_orbit_rbpf/observed_plate_orbit.h>
+#include <plate_orbit_rbpf/observed_plate_orbit_builder.h>
+#include <plate_orbit_rbpf/particle_filter_configuration_parameters.h>
+#include <plate_orbit_rbpf/predicted_plate.h>
+#include <plate_orbit_rbpf/prediction.h>
 #include <thrust/random.h>
 #include <util/random_variable_sampler.h>
 
 #include <Eigen/Dense>
 #include <cmath>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 namespace helper {
 
@@ -216,7 +216,7 @@ class particle_filter_configuration {
 
     // Step 2: the realized increment is itself a noisy measurement of the
     // angular velocity, so condition the linear substate on it. This is what
-    // lets v3 keep the angular velocity on the analytic side of the partition
+    // lets the RBPF keep the angular velocity on the analytic side of the partition
     // rather than sampling it as v2 does.
     {
       const linear_state::vector_type gain =
@@ -450,4 +450,4 @@ class particle_filter_configuration {
   particle_filter_configuration(const particle_filter_configuration_parameters& params) noexcept : params_{params} {}
 };
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf

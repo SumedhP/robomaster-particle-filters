@@ -42,8 +42,8 @@ pybind11_add_module (
   src/plate_orbit_v2/init.cc
   src/plate_orbit_v2/particle_filter.cu
 
-  src/plate_orbit_v3/init.cc
-  src/plate_orbit_v3/particle_filter.cu
+  src/plate_orbit_rbpf/init.cc
+  src/plate_orbit_rbpf/particle_filter.cu
 )
 
 # The .cu translation units contain no CUDA-specific syntax; the backend is
@@ -55,7 +55,7 @@ if (NOT PF_USE_CUDA)
     src/fast_plate_orbit/particle_filter.cu
     src/fast_plate_orbit_with_z_offset/particle_filter.cu
     src/plate_orbit_v2/particle_filter.cu
-    src/plate_orbit_v3/particle_filter.cu
+    src/plate_orbit_rbpf/particle_filter.cu
     PROPERTIES LANGUAGE CXX
   )
 endif ()

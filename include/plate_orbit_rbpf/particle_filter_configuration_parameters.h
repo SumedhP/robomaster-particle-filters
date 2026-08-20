@@ -2,7 +2,7 @@
 
 #include <Eigen/Dense>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 struct particle_filter_configuration_parameters {
   // Geometry prior.
@@ -26,7 +26,7 @@ struct particle_filter_configuration_parameters {
   float z_offset_stationary_variance;
   float z_offset_reversion_time_constant;
 
-  // Orientation. The prior variance is new in v3: the orientation is now the
+  // Orientation. The prior variance is new here: the orientation is now the
   // only sampled continuous quantity, so it needs explicit initial spread
   // rather than inheriting diversity from the center and radius draws.
   float orientation_prior_variance;
@@ -37,4 +37,4 @@ struct particle_filter_configuration_parameters {
   Eigen::Vector2f center_velocity_process_diagonal_covariance;
 };
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf

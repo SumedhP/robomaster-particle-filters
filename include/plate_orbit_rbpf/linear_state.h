@@ -4,7 +4,7 @@
 
 #include <Eigen/Dense>
 
-namespace plate_orbit_v3 {
+namespace plate_orbit_rbpf {
 
 // The Rao-Blackwellized linear substate. Conditional on the orientation
 // (which is carried by the particle) both the process model and the plate
@@ -106,4 +106,4 @@ struct linear_state {
       : mean_{mean}, covariance_{covariance} {}
 };
 
-}  // namespace plate_orbit_v3
+}  // namespace plate_orbit_rbpf
