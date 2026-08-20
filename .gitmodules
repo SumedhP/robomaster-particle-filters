@@ -1,6 +1,6 @@
 [submodule "particle-filter"]
 	path = deps/particle-filter
-	url = git@github.com:connormcmonigle/particle-filter.git
+	url = https://github.com/connormcmonigle/particle-filter
 [submodule "pybind11"]
 	path = deps/pybind11
 	url = https://github.com/pybind/pybind11.git
